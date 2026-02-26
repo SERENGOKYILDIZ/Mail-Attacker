@@ -39,6 +39,12 @@ ENV/
 *.swp
 *.swo
 
-# App specific
+# App specific exclusions
 config.json
 attachments/
+
+# Build artifacts and PyInstaller exclusions
+build/
+dist/
+release/
+*.spec

@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import shutil
 import threading
@@ -8,10 +9,21 @@ import mimetypes
 import customtkinter as ctk
 from tkinter import filedialog, messagebox
 
+import ctypes
+ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("eren.mailattacker.v1")
+
 import config
 
 ctk.set_appearance_mode(config.DEFAULT_THEME)
 ctk.set_default_color_theme(config.ACCENT_COLOR)
+
+def resource_path(relative_path):
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
 
 class MailAttackerApp(ctk.CTk):
     def __init__(self):
@@ -21,20 +33,20 @@ class MailAttackerApp(ctk.CTk):
         self.geometry(f"{config.WINDOW_WIDTH}x{config.WINDOW_HEIGHT}")
         self.resizable(config.RESIZABLE, config.RESIZABLE)
         
-        # Internal Data
+        icon_path = resource_path(os.path.join("assets", "logo.ico"))
+        if os.path.exists(icon_path):
+            self.iconbitmap(icon_path)
+        
         self.app_config = {"smtp": {}, "contacts": []}
-        self.contact_widgets = {} # For UI updates during sending without polluting JSON
+        self.contact_widgets = {}
         self.load_config()
 
-        # Ensure attachments dir exists
         if not os.path.exists(config.ATTACHMENTS_DIR):
             os.makedirs(config.ATTACHMENTS_DIR)
 
-        # Configure Grid
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(0, weight=1)
 
-        # Sidebar
         self.sidebar_frame = ctk.CTkFrame(self, width=200, corner_radius=0)
         self.sidebar_frame.grid(row=0, column=0, sticky="nsew")
         self.sidebar_frame.grid_rowconfigure(4, weight=1)
@@ -42,7 +54,6 @@ class MailAttackerApp(ctk.CTk):
         self.logo_label = ctk.CTkLabel(self.sidebar_frame, text=f"{config.APP_NAME}\n{config.APP_VERSION}", font=ctk.CTkFont(size=20, weight="bold"))
         self.logo_label.grid(row=0, column=0, padx=20, pady=(20, 10))
 
-        # Sidebar navigation buttons
         self.contacts_button = ctk.CTkButton(self.sidebar_frame, text="Contacts", command=self.show_contacts_view)
         self.contacts_button.grid(row=1, column=0, padx=20, pady=10)
 
@@ -52,21 +63,17 @@ class MailAttackerApp(ctk.CTk):
         self.send_all_button = ctk.CTkButton(self.sidebar_frame, text="Send All", command=self.send_all_mails, fg_color="green", hover_color="darkgreen")
         self.send_all_button.grid(row=5, column=0, padx=20, pady=(10, 20))
 
-        # Main Frame - Contacts View
         self.contacts_frame = ctk.CTkFrame(self, corner_radius=0, fg_color="transparent")
         
-        # Add Contact Section at the VERY TOP
         self.add_contact_frame = ctk.CTkFrame(self.contacts_frame, fg_color="transparent")
         self.add_contact_frame.pack(fill="x", padx=config.PAD_X, pady=(20, 5))
         
         self.add_btn_top = ctk.CTkButton(self.add_contact_frame, text="+ Add New Contact", fg_color="#1f538d", command=lambda: self.open_contact_popup(None))
         self.add_btn_top.pack(side="left")
 
-        # Contacts List Scrollable Frame
         self.contacts_scrollable_frame = ctk.CTkScrollableFrame(self.contacts_frame, label_text="Contact List")
         self.contacts_scrollable_frame.pack(fill="both", expand=True, padx=config.PAD_X, pady=(5, 20))
 
-        # Main Frame - Settings View
         self.settings_frame = ctk.CTkFrame(self, corner_radius=0, fg_color="transparent")
         
         self.settings_title = ctk.CTkLabel(self.settings_frame, text="SMTP Settings", font=ctk.CTkFont(size=20, weight="bold"))
@@ -80,25 +87,20 @@ class MailAttackerApp(ctk.CTk):
         form_frame = ctk.CTkFrame(self.settings_frame)
         form_frame.pack(fill="x", padx=config.PAD_X, pady=10)
         
-        # Server Label & Entry
         ctk.CTkLabel(form_frame, text="SMTP Server Account (e.g. smtp.gmail.com)", anchor="w").pack(fill="x", padx=config.PAD_X, pady=config.LABEL_PAD_Y)
         ctk.CTkEntry(form_frame, textvariable=self.smtp_server_var).pack(fill="x", padx=config.PAD_X, pady=config.ENTRY_PAD_Y)
         
-        # Port Label & Entry
         ctk.CTkLabel(form_frame, text="SMTP Port (e.g. 587)", anchor="w").pack(fill="x", padx=config.PAD_X, pady=config.LABEL_PAD_Y)
         ctk.CTkEntry(form_frame, textvariable=self.smtp_port_var).pack(fill="x", padx=config.PAD_X, pady=config.ENTRY_PAD_Y)
         
-        # Email Label & Entry
         ctk.CTkLabel(form_frame, text="Sender Email Address", anchor="w").pack(fill="x", padx=config.PAD_X, pady=config.LABEL_PAD_Y)
         ctk.CTkEntry(form_frame, textvariable=self.smtp_user_var).pack(fill="x", padx=config.PAD_X, pady=config.ENTRY_PAD_Y)
         
-        # Password Label & Entry
         ctk.CTkLabel(form_frame, text="Sender Password / App Password", anchor="w").pack(fill="x", padx=config.PAD_X, pady=config.LABEL_PAD_Y)
         ctk.CTkEntry(form_frame, textvariable=self.smtp_pass_var, show="*").pack(fill="x", padx=config.PAD_X, pady=config.ENTRY_PAD_Y)
         
         ctk.CTkButton(form_frame, text="Save Settings", command=self.save_settings).pack(pady=20)
 
-        # Start with Contacts view
         self.show_contacts_view()
 
     def load_config(self):
@@ -184,6 +186,10 @@ class MailAttackerApp(ctk.CTk):
         popup.transient(self)
         popup.grab_set()
 
+        icon_path = resource_path(os.path.join("assets", "logo.ico"))
+        if os.path.exists(icon_path):
+            popup.iconbitmap(icon_path)
+
         popup.update_idletasks()
         x = self.winfo_x() + (self.winfo_width() - 600) // 2
         y = self.winfo_y() + (self.winfo_height() - 650) // 2
@@ -197,26 +203,21 @@ class MailAttackerApp(ctk.CTk):
         form_frame = ctk.CTkScrollableFrame(popup, fg_color="transparent")
         form_frame.pack(fill="both", expand=True, padx=20, pady=20)
 
-        # Company Name
         ctk.CTkLabel(form_frame, text="Company Name", anchor="w").pack(fill="x", padx=5, pady=config.LABEL_PAD_Y)
         ctk.CTkEntry(form_frame, textvariable=comp_var).pack(fill="x", padx=5, pady=config.ENTRY_PAD_Y)
 
-        # Recipient Email
         ctk.CTkLabel(form_frame, text="Recipient Email", anchor="w").pack(fill="x", padx=5, pady=config.LABEL_PAD_Y)
         ctk.CTkEntry(form_frame, textvariable=email_var).pack(fill="x", padx=5, pady=config.ENTRY_PAD_Y)
 
-        # Subject
         ctk.CTkLabel(form_frame, text="Subject", anchor="w").pack(fill="x", padx=5, pady=config.LABEL_PAD_Y)
         ctk.CTkEntry(form_frame, textvariable=subj_var).pack(fill="x", padx=5, pady=config.ENTRY_PAD_Y)
 
-        # Message Body
         ctk.CTkLabel(form_frame, text="Message Body", anchor="w").pack(fill="x", padx=5, pady=config.LABEL_PAD_Y)
         msg_textbox = ctk.CTkTextbox(form_frame, height=120)
         msg_textbox.pack(fill="x", padx=5, pady=config.ENTRY_PAD_Y)
         if contact:
             msg_textbox.insert("1.0", contact.get("message", ""))
 
-        # Attachment file
         ctk.CTkLabel(form_frame, text="Attachment File", anchor="w").pack(fill="x", padx=5, pady=config.LABEL_PAD_Y)
         
         file_frame = ctk.CTkFrame(form_frame, fg_color="transparent")
