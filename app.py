@@ -245,12 +245,24 @@ class MailAttackerApp(ctk.CTk):
 
             if new_file_path and new_file_path != attachment_rel and os.path.exists(new_file_path):
                 filename = os.path.basename(new_file_path)
-                target_path = os.path.join(config.ATTACHMENTS_DIR, filename)
+                
+                profile_name = comp_var.get().strip() or email_val
+                safe_profile_name = "".join(c for c in profile_name if c.isalnum() or c in (" ", "-", "_", ".", "@")).strip()
+                if not safe_profile_name:
+                    safe_profile_name = "profile"
+                    
+                target_dir = os.path.join(config.ATTACHMENTS_DIR, safe_profile_name)
+                
                 try:
+                    if not os.path.exists(target_dir):
+                        os.makedirs(target_dir)
+                        
+                    target_path = os.path.join(target_dir, filename)
+                    
                     idx = 1
                     while os.path.exists(target_path) and os.path.abspath(target_path) != os.path.abspath(new_file_path):
                         name, ext = os.path.splitext(filename)
-                        target_path = os.path.join(config.ATTACHMENTS_DIR, f"{name}_{idx}{ext}")
+                        target_path = os.path.join(target_dir, f"{name}_{idx}{ext}")
                         idx += 1
                     if os.path.abspath(target_path) != os.path.abspath(new_file_path):
                         shutil.copy2(new_file_path, target_path)

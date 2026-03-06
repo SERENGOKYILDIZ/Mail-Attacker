@@ -1,8 +1,13 @@
-# Mail Attacker - Bulk Email Sender
+# MailFlow - Bulk Email Sender
 
 ## Project Overview
 
-Mail Attacker is a modern, Python-based desktop application designed for sending personalized bulk emails with attachments. Built with CustomTkinter, it provides a sleek, user-friendly interface to manage contacts, configure SMTP settings, and send customized emails automatically.
+MailFlow is a modern, Python-based desktop application designed for sending personalized bulk emails with attachments. Built with CustomTkinter, it provides a sleek, user-friendly interface to manage contacts, configure SMTP settings, and send customized emails automatically.
+
+## Downloads
+
+[![Download MailFlow](https://img.shields.io/badge/Download-MailFlow_v1.1.0-blue?style=for-the-badge&logo=windows)](https://github.com/SERENGOKYILDIZ/Mail-Attacker/releases/download/v1.1.0/MailFlow_v1.1.0.exe)
+
 
 ## Key Features
 
