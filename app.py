@@ -87,21 +87,54 @@ class MailAttackerApp(ctk.CTk):
         form_frame = ctk.CTkFrame(self.settings_frame)
         form_frame.pack(fill="x", padx=config.PAD_X, pady=10)
         
+        # Server Input
         ctk.CTkLabel(form_frame, text="SMTP Server Account (e.g. smtp.gmail.com)", anchor="w").pack(fill="x", padx=config.PAD_X, pady=config.LABEL_PAD_Y)
-        ctk.CTkEntry(form_frame, textvariable=self.smtp_server_var).pack(fill="x", padx=config.PAD_X, pady=config.ENTRY_PAD_Y)
+        server_options = ["smtp.gmail.com", "smtp.office365.com", "smtp.mail.yahoo.com"]
+        self.smtp_server_cb = ctk.CTkComboBox(form_frame, values=server_options, variable=self.smtp_server_var)
+        self.smtp_server_cb.pack(fill="x", padx=config.PAD_X, pady=config.ENTRY_PAD_Y)
         
+        # Port Input with validation
+        vcmd_port = (self.register(self.validate_port), '%P')
         ctk.CTkLabel(form_frame, text="SMTP Port (e.g. 587)", anchor="w").pack(fill="x", padx=config.PAD_X, pady=config.LABEL_PAD_Y)
-        ctk.CTkEntry(form_frame, textvariable=self.smtp_port_var).pack(fill="x", padx=config.PAD_X, pady=config.ENTRY_PAD_Y)
+        ctk.CTkEntry(form_frame, textvariable=self.smtp_port_var, validate='key', validatecommand=vcmd_port).pack(fill="x", padx=config.PAD_X, pady=config.ENTRY_PAD_Y)
         
+        # Email Input with Validation
         ctk.CTkLabel(form_frame, text="Sender Email Address", anchor="w").pack(fill="x", padx=config.PAD_X, pady=config.LABEL_PAD_Y)
-        ctk.CTkEntry(form_frame, textvariable=self.smtp_user_var).pack(fill="x", padx=config.PAD_X, pady=config.ENTRY_PAD_Y)
+        self.email_entry = ctk.CTkEntry(form_frame, textvariable=self.smtp_user_var, placeholder_text="example@domain.com")
+        self.email_entry.pack(fill="x", padx=config.PAD_X, pady=config.ENTRY_PAD_Y)
+        self.email_entry.bind("<FocusOut>", self.validate_email_format)
         
+        # Password Input with Toggle
         ctk.CTkLabel(form_frame, text="Sender Password / App Password", anchor="w").pack(fill="x", padx=config.PAD_X, pady=config.LABEL_PAD_Y)
-        ctk.CTkEntry(form_frame, textvariable=self.smtp_pass_var, show="*").pack(fill="x", padx=config.PAD_X, pady=config.ENTRY_PAD_Y)
+        pass_frame = ctk.CTkFrame(form_frame, fg_color="transparent")
+        pass_frame.pack(fill="x", padx=config.PAD_X, pady=config.ENTRY_PAD_Y)
+        
+        self.pass_entry = ctk.CTkEntry(pass_frame, textvariable=self.smtp_pass_var, show="*")
+        self.pass_entry.pack(side="left", fill="x", expand=True)
+        
+        self.show_pass_var = ctk.BooleanVar(value=False)
+        self.show_pass_btn = ctk.CTkCheckBox(pass_frame, text="👁", variable=self.show_pass_var, command=self.toggle_password_visibility, width=30)
+        self.show_pass_btn.pack(side="right", padx=(5, 0))
         
         ctk.CTkButton(form_frame, text="Save Settings", command=self.save_settings).pack(pady=20)
 
         self.show_contacts_view()
+
+    def validate_port(self, P):
+        if P == "" or P.isdigit():
+            return True
+        return False
+        
+    def validate_email_format(self, event=None):
+        email = self.smtp_user_var.get()
+        if email and ("@" not in email or "." not in email):
+            messagebox.showwarning("Invalid Email", "Please enter a valid email address.")
+            
+    def toggle_password_visibility(self):
+        if self.show_pass_var.get():
+            self.pass_entry.configure(show="")
+        else:
+            self.pass_entry.configure(show="*")
 
     def load_config(self):
         if os.path.exists(config.CONFIG_FILE):
@@ -156,22 +189,160 @@ class MailAttackerApp(ctk.CTk):
     def create_contact_row(self, contact):
         row_frame = ctk.CTkFrame(self.contacts_scrollable_frame)
         row_frame.pack(fill="x", pady=5, padx=5)
-
-        info_text = f"{contact.get('company', '')} | {contact.get('email', '')} | {contact.get('subject', '')}"
         
-        lbl = ctk.CTkLabel(row_frame, text=info_text, anchor="w")
-        lbl.pack(side="left", padx=10, expand=True, fill="x")
+        row_frame.contact_id = contact.get("id")
+        
+        row_frame.grid_columnconfigure(1, weight=1, uniform="col")
+        row_frame.grid_columnconfigure(2, weight=2, uniform="col")
+        row_frame.grid_columnconfigure(3, weight=2, uniform="col")
+        row_frame.grid_columnconfigure(4, weight=0)
+        row_frame.grid_columnconfigure(5, weight=0)
+        row_frame.grid_columnconfigure(6, weight=0)
+        
+        drag_handle = ctk.CTkLabel(row_frame, text="☰", cursor="fleur", width=30)
+        drag_handle.grid(row=0, column=0, padx=(10, 5), pady=10)
 
-        status_lbl = ctk.CTkLabel(row_frame, text="Ready", width=120)
-        status_lbl.pack(side="left", padx=10)
+        def truncate(text, max_len=20):
+            return text if len(text) <= max_len else text[:max_len-3] + "..."
+
+        company_lbl = ctk.CTkLabel(row_frame, text=truncate(contact.get('company', '')), anchor="w", cursor="fleur")
+        company_lbl.grid(row=0, column=1, sticky="w", padx=5)
+        
+        email_lbl = ctk.CTkLabel(row_frame, text=truncate(contact.get('email', ''), 25), anchor="w", cursor="fleur")
+        email_lbl.grid(row=0, column=2, sticky="w", padx=5)
+        
+        subj_lbl = ctk.CTkLabel(row_frame, text=truncate(contact.get('subject', ''), 25), anchor="w", cursor="fleur")
+        subj_lbl.grid(row=0, column=3, sticky="w", padx=5)
+
+        status_lbl = ctk.CTkLabel(row_frame, text="Ready", width=80)
+        status_lbl.grid(row=0, column=4, padx=10)
         
         self.contact_widgets[contact.get("id")] = {"status_lbl": status_lbl}
 
         edit_btn = ctk.CTkButton(row_frame, text="Edit", width=60, command=lambda c=contact: self.open_contact_popup(c))
-        edit_btn.pack(side="left", padx=5)
+        edit_btn.grid(row=0, column=5, padx=5)
 
         del_btn = ctk.CTkButton(row_frame, text="Del", width=60, fg_color="red", hover_color="darkred", command=lambda c=contact: self.delete_contact(c))
-        del_btn.pack(side="left", padx=5)
+        del_btn.grid(row=0, column=6, padx=(5, 10))
+        
+        for w in [row_frame, drag_handle, company_lbl, email_lbl, subj_lbl]:
+            w.bind("<Button-1>", lambda e, r=row_frame: self.start_drag(e, r))
+            w.bind("<B1-Motion>", self.do_drag)
+            w.bind("<ButtonRelease-1>", self.stop_drag)
+            
+        def select_row(event, rf=row_frame):
+            self.select_contact_row(rf)
+            
+        for w in [row_frame, company_lbl, email_lbl, subj_lbl]:
+            w.bind("<Button-1>", select_row, add="+")
+            
+    def select_contact_row(self, row_frame):
+        if getattr(self, 'selected_row', None) and self.selected_row.winfo_exists():
+            self.selected_row.configure(border_width=0)
+            
+        self.selected_row = row_frame
+        self.selected_row.configure(border_width=2, border_color=config.ACCENT_COLOR)
+        
+        self.bind("<Delete>", self.delete_selected_contact)
+        
+    def delete_selected_contact(self, event=None):
+        if hasattr(self, 'selected_row') and self.selected_row and self.selected_row.winfo_exists():
+            c_id = getattr(self.selected_row, "contact_id", None)
+            if c_id is not None:
+                contact = next((c for c in self.app_config["contacts"] if c.get("id") == c_id), None)
+                if contact:
+                    self.delete_contact(contact)
+
+    def start_drag(self, event, row_frame):
+        self.dragged_row = row_frame
+
+        self.drag_win = ctk.CTkToplevel(self)
+        self.drag_win.overrideredirect(True)
+        self.drag_win.attributes("-alpha", 0.8)
+        self.drag_win.attributes("-topmost", True)
+        
+        info_text = "Moving Contact..."
+        for child in row_frame.winfo_children():
+            if isinstance(child, ctk.CTkLabel) and "|" in child.cget("text"):
+                info_text = child.cget("text")
+                break
+                
+        drag_frame = ctk.CTkFrame(self.drag_win, fg_color="#1f538d", corner_radius=5)
+        drag_frame.pack(fill="both", expand=True)
+        ctk.CTkLabel(drag_frame, text=info_text, padx=10, pady=5, font=ctk.CTkFont(weight="bold")).pack()
+        
+        self.drag_offset_x = 15
+        self.drag_offset_y = 15
+        self.drag_win.geometry(f"+{event.x_root + self.drag_offset_x}+{event.y_root + self.drag_offset_y}")
+        
+        self.placeholder = ctk.CTkFrame(self.contacts_scrollable_frame, height=row_frame.winfo_height(), fg_color="transparent", border_width=2, border_color="#1f538d")
+        self.placeholder.pack(before=self.dragged_row, fill="x", pady=5, padx=5)
+        
+        self.original_fg_color = row_frame.cget("fg_color")
+        self.dragged_row.pack_forget()
+        
+        self.last_drag_y = event.y_root
+
+    def do_drag(self, event):
+        if not getattr(self, 'dragged_row', None) or not getattr(self, 'placeholder', None):
+            return
+            
+        if hasattr(self, 'drag_win') and self.drag_win.winfo_exists():
+            self.drag_win.geometry(f"+{event.x_root + self.drag_offset_x}+{event.y_root + self.drag_offset_y}")
+        
+        if abs(event.y_root - self.last_drag_y) < 5:
+            return
+        self.last_drag_y = event.y_root
+            
+        y = event.y_root
+        
+        children = [w for w in self.contacts_scrollable_frame.winfo_children() if hasattr(w, "contact_id")]
+        
+        for widget in children:
+            if widget == self.dragged_row:
+                continue
+            
+            wy = widget.winfo_rooty()
+            wh = widget.winfo_height()
+            
+            if wy < y < wy + wh:
+                if y < wy + (wh / 2):
+                    self.placeholder.pack(before=widget)
+                else:
+                    self.placeholder.pack(after=widget)
+                break
+
+    def stop_drag(self, event):
+        if not getattr(self, 'dragged_row', None):
+            return
+            
+        if hasattr(self, 'drag_win') and self.drag_win.winfo_exists():
+            self.drag_win.destroy()
+            self.drag_win = None
+            
+        if hasattr(self, 'placeholder') and self.placeholder.winfo_exists():
+            self.dragged_row.pack(before=self.placeholder, fill="x", pady=5, padx=5)
+            self.placeholder.destroy()
+            self.placeholder = None
+        else:
+            self.dragged_row.pack(fill="x", pady=5, padx=5)
+            
+        if hasattr(self, 'original_fg_color'):
+            self.dragged_row.configure(fg_color=self.original_fg_color)
+            
+        self.dragged_row = None
+        
+        new_contacts = []
+        for widget in self.contacts_scrollable_frame.winfo_children():
+            c_id = getattr(widget, "contact_id", None)
+            if c_id is not None:
+                contact = next((c for c in self.app_config["contacts"] if c.get("id") == c_id), None)
+                if contact:
+                    new_contacts.append(contact)
+                    
+        if len(new_contacts) == len(self.app_config["contacts"]):
+            self.app_config["contacts"] = new_contacts
+            self.save_config()
 
     def delete_contact(self, contact_to_del):
         if messagebox.askyesno("Delete", f"Are you sure you want to delete {contact_to_del.get('email')}?"):

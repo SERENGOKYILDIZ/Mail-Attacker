@@ -6,7 +6,7 @@ MailFlow is a modern, Python-based desktop application designed for sending pers
 
 ## Downloads
 
-[![Download MailFlow](https://img.shields.io/badge/Download-MailFlow_v1.1.0-blue?style=for-the-badge&logo=windows)](https://github.com/SERENGOKYILDIZ/Mail-Attacker/releases/download/v1.1.0/MailFlow_v1.1.0.exe)
+[![Download MailFlow](https://img.shields.io/badge/Download-MailFlow_v1.1.1-blue?style=for-the-badge&logo=windows)](https://github.com/SERENGOKYILDIZ/Mail-Attacker/releases/download/v1.1.1/MailFlow_v1.1.1.exe)
 
 
 ## Key Features
