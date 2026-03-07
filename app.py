@@ -4,10 +4,12 @@ import json
 import shutil
 import threading
 import smtplib
+import csv
 from email.message import EmailMessage
 import mimetypes
 import datetime
 import customtkinter as ctk
+import tkinter as tk
 from tkinter import filedialog, messagebox
 
 import ctypes
@@ -50,7 +52,7 @@ class MailAttackerApp(ctk.CTk):
 
         self.sidebar_frame = ctk.CTkFrame(self, width=200, corner_radius=0)
         self.sidebar_frame.grid(row=0, column=0, sticky="nsew")
-        self.sidebar_frame.grid_rowconfigure(4, weight=1)
+        self.sidebar_frame.grid_rowconfigure(5, weight=1)
 
         self.logo_label = ctk.CTkLabel(self.sidebar_frame, text=f"{config.APP_NAME}\n{config.APP_VERSION}", font=ctk.CTkFont(size=20, weight="bold"))
         self.logo_label.grid(row=0, column=0, padx=20, pady=(20, 10))
@@ -58,14 +60,17 @@ class MailAttackerApp(ctk.CTk):
         self.contacts_button = ctk.CTkButton(self.sidebar_frame, text="Contacts", command=self.show_contacts_view)
         self.contacts_button.grid(row=1, column=0, padx=20, pady=10)
 
+        self.help_button = ctk.CTkButton(self.sidebar_frame, text="Help", command=self.show_help_view, fg_color="#3B3B3B", hover_color="#2B2B2B")
+        self.help_button.grid(row=2, column=0, padx=20, pady=10)
+        
         self.settings_button = ctk.CTkButton(self.sidebar_frame, text="Settings", command=self.show_settings_view)
-        self.settings_button.grid(row=2, column=0, padx=20, pady=10)
+        self.settings_button.grid(row=3, column=0, padx=20, pady=10)
         
         self.reports_button = ctk.CTkButton(self.sidebar_frame, text="Reports", command=self.show_reports_view)
-        self.reports_button.grid(row=3, column=0, padx=20, pady=10)
+        self.reports_button.grid(row=4, column=0, padx=20, pady=10)
         
-        self.send_all_button = ctk.CTkButton(self.sidebar_frame, text="Send All", command=self.send_all_mails, fg_color="green", hover_color="darkgreen")
-        self.send_all_button.grid(row=6, column=0, padx=20, pady=(10, 20))
+        self.send_all_button = ctk.CTkButton(self.sidebar_frame, text="Send All Now", command=self.send_all_mails, fg_color="green", hover_color="darkgreen", height=45, font=ctk.CTkFont(size=14, weight="bold"))
+        self.send_all_button.grid(row=6, column=0, padx=15, pady=(15, 25))
 
         # --- Contacts Frame ---
         self.contacts_frame = ctk.CTkFrame(self, corner_radius=0, fg_color="transparent")
@@ -76,17 +81,28 @@ class MailAttackerApp(ctk.CTk):
         self.add_btn_top = ctk.CTkButton(self.add_contact_frame, text="+ Add New Contact", fg_color="#1f538d", command=lambda: self.open_contact_popup(None))
         self.add_btn_top.pack(side="left")
         
+        self.import_btn = ctk.CTkButton(self.add_contact_frame, text="Import CSV", fg_color="#915200", hover_color="#633800", command=self.import_csv)
+        self.import_btn.pack(side="left", padx=(10, 0))
+        
+        self.export_btn = ctk.CTkButton(self.add_contact_frame, text="Export CSV", fg_color="#186121", hover_color="#0d3b13", command=self.export_csv)
+        self.export_btn.pack(side="left", padx=(10, 0))
+        
         self.toggle_all_var = ctk.BooleanVar(value=True)
         self.toggle_all_btn = ctk.CTkButton(self.add_contact_frame, text="Select/Deselect All", fg_color="gray30", hover_color="gray40", command=self.toggle_all_contacts)
         self.toggle_all_btn.pack(side="right")
+        
+        self.search_var = ctk.StringVar()
+        self.search_entry = ctk.CTkEntry(self.contacts_frame, textvariable=self.search_var, placeholder_text="Search contacts by company or email...")
+        self.search_entry.pack(fill="x", padx=config.PAD_X, pady=(0, 5))
+        self.search_entry.bind("<KeyRelease>", self.filter_contacts_list)
 
-        self.contacts_scrollable_frame = ctk.CTkScrollableFrame(self.contacts_frame, label_text="Contact List")
+        self.contacts_scrollable_frame = ctk.CTkScrollableFrame(self.contacts_frame)
         self.contacts_scrollable_frame.pack(fill="both", expand=True, padx=config.PAD_X, pady=(5, 20))
         
         # Context Menu for Right Click
-        import tkinter as tk
         self.context_menu = tk.Menu(self, tearoff=0)
         self.context_menu.add_command(label="Toggle Selected", command=self.toggle_selected_contacts)
+        self.context_menu.add_command(label="Delete Selected", command=self.delete_selected_contacts)
         self.context_menu.add_separator()
         self.context_menu.add_command(label="Select All", command=lambda: self.set_all_contacts(True))
         self.context_menu.add_command(label="Deselect All", command=lambda: self.set_all_contacts(False))
@@ -94,40 +110,47 @@ class MailAttackerApp(ctk.CTk):
         self.contacts_scrollable_frame.bind("<Button-3>", self.show_context_menu)
 
         # --- Settings Frame ---
-        self.settings_frame = ctk.CTkFrame(self, corner_radius=0, fg_color="transparent")
+        self.settings_frame = ctk.CTkScrollableFrame(self, corner_radius=0, fg_color="transparent")
+        settings_top_frame = ctk.CTkFrame(self.settings_frame, fg_color="transparent")
+        settings_top_frame.pack(fill="x", padx=config.PAD_X, pady=20)
         
-        self.settings_title = ctk.CTkLabel(self.settings_frame, text="SMTP Settings", font=ctk.CTkFont(size=20, weight="bold"))
-        self.settings_title.pack(padx=config.PAD_X, pady=20, anchor="w")
+        self.settings_title = ctk.CTkLabel(settings_top_frame, text="Application Settings", font=ctk.CTkFont(size=20, weight="bold"))
+        self.settings_title.pack(side="left")
+        
+        save_btn = ctk.CTkButton(settings_top_frame, text="Save Settings", command=self.save_settings, width=150, fg_color="#1f538d")
+        save_btn.pack(side="right")
         
         self.smtp_server_var = ctk.StringVar(value=self.app_config["smtp"].get("server", ""))
         self.smtp_port_var = ctk.StringVar(value=self.app_config["smtp"].get("port", ""))
         self.smtp_user_var = ctk.StringVar(value=self.app_config["smtp"].get("user", ""))
         self.smtp_pass_var = ctk.StringVar(value=self.app_config["smtp"].get("password", ""))
 
-        form_frame = ctk.CTkFrame(self.settings_frame)
-        form_frame.pack(fill="x", padx=config.PAD_X, pady=10)
+        smtp_frame = ctk.CTkFrame(self.settings_frame)
+        smtp_frame.pack(fill="x", padx=config.PAD_X, pady=(0, 10))
+        
+        ctk.CTkLabel(smtp_frame, text="SMTP Configuration", font=ctk.CTkFont(size=14, weight="bold")).pack(fill="x", padx=config.PAD_X, pady=(10, 0))
         
         # Server Input
-        ctk.CTkLabel(form_frame, text="SMTP Server Account (e.g. smtp.gmail.com)", anchor="w").pack(fill="x", padx=config.PAD_X, pady=config.LABEL_PAD_Y)
+        ctk.CTkLabel(smtp_frame, text="SMTP Server Account (e.g. smtp.gmail.com)", anchor="w").pack(fill="x", padx=config.PAD_X, pady=config.LABEL_PAD_Y)
         server_options = ["smtp.gmail.com", "smtp.office365.com", "smtp.mail.yahoo.com"]
-        self.smtp_server_cb = ctk.CTkComboBox(form_frame, values=server_options, variable=self.smtp_server_var)
+        self.smtp_server_cb = ctk.CTkComboBox(smtp_frame, values=server_options, variable=self.smtp_server_var)
         self.smtp_server_cb.pack(fill="x", padx=config.PAD_X, pady=config.ENTRY_PAD_Y)
         
         # Port Input with validation
         vcmd_port = (self.register(self.validate_port), '%P')
-        ctk.CTkLabel(form_frame, text="SMTP Port (e.g. 587)", anchor="w").pack(fill="x", padx=config.PAD_X, pady=config.LABEL_PAD_Y)
-        ctk.CTkEntry(form_frame, textvariable=self.smtp_port_var, validate='key', validatecommand=vcmd_port).pack(fill="x", padx=config.PAD_X, pady=config.ENTRY_PAD_Y)
+        ctk.CTkLabel(smtp_frame, text="SMTP Port (e.g. 587)", anchor="w").pack(fill="x", padx=config.PAD_X, pady=config.LABEL_PAD_Y)
+        ctk.CTkEntry(smtp_frame, textvariable=self.smtp_port_var, validate='key', validatecommand=vcmd_port).pack(fill="x", padx=config.PAD_X, pady=config.ENTRY_PAD_Y)
         
         # Email Input with Validation
-        ctk.CTkLabel(form_frame, text="Sender Email Address", anchor="w").pack(fill="x", padx=config.PAD_X, pady=config.LABEL_PAD_Y)
-        self.email_entry = ctk.CTkEntry(form_frame, textvariable=self.smtp_user_var, placeholder_text="example@domain.com")
+        ctk.CTkLabel(smtp_frame, text="Sender Email Address", anchor="w").pack(fill="x", padx=config.PAD_X, pady=config.LABEL_PAD_Y)
+        self.email_entry = ctk.CTkEntry(smtp_frame, textvariable=self.smtp_user_var, placeholder_text="example@domain.com")
         self.email_entry.pack(fill="x", padx=config.PAD_X, pady=config.ENTRY_PAD_Y)
         self.email_entry.bind("<FocusOut>", self.validate_email_format)
         
         # Password Input with Toggle
-        ctk.CTkLabel(form_frame, text="Sender Password / App Password", anchor="w").pack(fill="x", padx=config.PAD_X, pady=config.LABEL_PAD_Y)
-        pass_frame = ctk.CTkFrame(form_frame, fg_color="transparent")
-        pass_frame.pack(fill="x", padx=config.PAD_X, pady=config.ENTRY_PAD_Y)
+        ctk.CTkLabel(smtp_frame, text="Sender Password / App Password", anchor="w").pack(fill="x", padx=config.PAD_X, pady=config.LABEL_PAD_Y)
+        pass_frame = ctk.CTkFrame(smtp_frame, fg_color="transparent")
+        pass_frame.pack(fill="x", padx=config.PAD_X, pady=(0, 15))
         
         self.pass_entry = ctk.CTkEntry(pass_frame, textvariable=self.smtp_pass_var, show="*")
         self.pass_entry.pack(side="left", fill="x", expand=True)
@@ -136,7 +159,49 @@ class MailAttackerApp(ctk.CTk):
         self.show_pass_btn = ctk.CTkCheckBox(pass_frame, text="👁", variable=self.show_pass_var, command=self.toggle_password_visibility, width=30)
         self.show_pass_btn.pack(side="right", padx=(5, 0))
         
-        ctk.CTkButton(form_frame, text="Save Settings", command=self.save_settings).pack(pady=20)
+        others_frame = ctk.CTkFrame(self.settings_frame)
+        others_frame.pack(fill="x", padx=config.PAD_X, pady=(5, 10))
+        
+        ctk.CTkLabel(others_frame, text="Other Settings", font=ctk.CTkFont(size=14, weight="bold")).pack(fill="x", padx=config.PAD_X, pady=(10, 0))
+        
+        # Anti-Spam / Delay Setting
+        self.delay_var = ctk.StringVar(value=str(self.app_config.get("delay", 2)))
+        vcmd_delay = (self.register(self.validate_port), '%P') # reuse validate_port functionality
+        ctk.CTkLabel(others_frame, text="Delay Between Emails (Seconds)", anchor="w").pack(fill="x", padx=config.PAD_X, pady=config.LABEL_PAD_Y)
+        ctk.CTkEntry(others_frame, textvariable=self.delay_var, validate='key', validatecommand=vcmd_delay).pack(fill="x", padx=config.PAD_X, pady=config.ENTRY_PAD_Y)
+        
+        # Date & Time Format
+        date_map_reverse = {"%d/%m/%Y": "DD/MM/YYYY", "%m/%d/%Y": "MM/DD/YYYY", "%Y-%m-%d": "YYYY-MM-DD", "%d.%m.%Y": "DD.MM.YYYY"}
+        time_map_reverse = {"%H:%M": "24H", "%I:%M %p": "12H"}
+        
+        saved_date = self.app_config.get("date_format", "DD/MM/YYYY")
+        if "%" in saved_date: saved_date = date_map_reverse.get(saved_date, "DD/MM/YYYY")
+        saved_time = self.app_config.get("time_format", "24H")
+        if "%" in saved_time: saved_time = time_map_reverse.get(saved_time, "24H")
+        
+        datetime_row = ctk.CTkFrame(others_frame, fg_color="transparent")
+        datetime_row.pack(fill="x", padx=config.PAD_X, pady=config.ENTRY_PAD_Y)
+        
+        date_col = ctk.CTkFrame(datetime_row, fg_color="transparent")
+        date_col.pack(side="left", fill="x", expand=True, padx=(0, 5))
+        
+        time_col = ctk.CTkFrame(datetime_row, fg_color="transparent")
+        time_col.pack(side="left", fill="x", expand=True, padx=(5, 0))
+        
+        self.date_format_var = ctk.StringVar(value=saved_date)
+        ctk.CTkLabel(date_col, text="Date Format", anchor="w").pack(fill="x", pady=config.LABEL_PAD_Y)
+        date_options = ["DD/MM/YYYY", "MM/DD/YYYY", "YYYY-MM-DD", "DD.MM.YYYY"]
+        ctk.CTkComboBox(date_col, values=date_options, variable=self.date_format_var, state="readonly").pack(fill="x")
+        
+        self.time_format_var = ctk.StringVar(value=saved_time)
+        ctk.CTkLabel(time_col, text="Time Format", anchor="w").pack(fill="x", pady=config.LABEL_PAD_Y)
+        time_options = ["24H", "12H"]
+        ctk.CTkComboBox(time_col, values=time_options, variable=self.time_format_var, state="readonly").pack(fill="x")
+        
+        # Desktop Notifications
+        self.notif_var = ctk.BooleanVar(value=bool(self.app_config.get("notifications", True)))
+        self.notif_checkbox = ctk.CTkCheckBox(others_frame, text="Enable Desktop Notifications on Completion", variable=self.notif_var)
+        self.notif_checkbox.pack(fill="x", padx=config.PAD_X, pady=(0, 15))
         
         # --- Reports Frame ---
         self.reports_frame = ctk.CTkFrame(self, corner_radius=0, fg_color="transparent")
@@ -152,6 +217,49 @@ class MailAttackerApp(ctk.CTk):
         
         self.reports_scrollable_frame = ctk.CTkScrollableFrame(self.reports_frame, label_text="Recent Logs")
         self.reports_scrollable_frame.pack(fill="both", expand=True, padx=config.PAD_X, pady=(5, 20))
+
+        # --- Help Frame ---
+        self.help_frame = ctk.CTkFrame(self, corner_radius=0, fg_color="transparent")
+        self.help_title = ctk.CTkLabel(self.help_frame, text="MailFlow Help & Guide", font=ctk.CTkFont(size=24, weight="bold"))
+        self.help_title.pack(padx=config.PAD_X, pady=(20, 10), anchor="w")
+        
+        help_scroll = ctk.CTkScrollableFrame(self.help_frame, fg_color="transparent")
+        help_scroll.pack(fill="both", expand=True, padx=config.PAD_X, pady=(0, 20))
+        
+        def add_help_section(title, body, tb_height=100):
+            sec_frame = ctk.CTkFrame(help_scroll)
+            sec_frame.pack(fill="x", pady=10)
+            ctk.CTkLabel(sec_frame, text=title, font=ctk.CTkFont(size=16, weight="bold"), text_color="#8dbbde").pack(anchor="w", padx=15, pady=(10, 5))
+            
+            body_tb = ctk.CTkTextbox(sec_frame, height=tb_height, wrap="word", fg_color="transparent")
+            body_tb.pack(fill="x", padx=10, pady=(0, 10))
+            body_tb.insert("1.0", body)
+            body_tb.configure(state="disabled")
+            
+        add_help_section("1. Dynamic Template Variables",
+            "You can personalize bulk emails easily by injecting variables directly into the 'Message Body' or 'Subject' field of any contact:\n\n"
+            "• {company_name} : Replaced by the exact content of the Company Name field.\n"
+            "• {email} : Replaced by the recipient's full email address.\n"
+            "• {email_prefix} : Replaced by the first part of the email address (the text before the '@' symbol).\n"
+            "• {date} : Replaced with today's date (e.g. 2026-03-08).\n"
+            "• {time} : Replaced with the current time (e.g. 14:30).\n\n"
+            "Example Message:\n'Hello {company_name} rep. We are contacting you at {time} via {email_prefix}.'\n"
+            "Becomes: 'Hello Microsoft rep. We are contacting you at 14:30 via billgates.'", 190)
+            
+        add_help_section("2. CSV Import / Export formatting",
+            "When importing a .csv file, MailFlow looks at the header row to determine where data goes. To ensure a seamless import, please have your column headers loosely match these terms (case-insensitive):\n\n"
+            "• Emails: 'email', 'e-mail', or 'mail'\n"
+            "• Company: 'company', 'name', 'client', or 'contact'\n"
+            "• Subject: 'subject' or 'title'\n"
+            "• Message: 'message', 'body', 'text', or 'content'\n\n"
+            "Note: Only rows with a valid email address column are imported. Attachments must be added manually inside the app afterwards.", 160)
+            
+        add_help_section("3. Anti-Spam & Send Rate",
+            "To avoid your emails being flagged as spam or bot-activity by providers like Gmail or Office365, MailFlow gives you the ability to set a 'Delay Between Emails' in the Settings tab.\n"
+            "A standard delay is 2 seconds, meaning MailFlow waits 2 seconds before firing off the next email in the queue. You can increase this delay for massive mailing campaigns to assure maximum deliverability.", 100)
+            
+        add_help_section("4. Desktop Notifications",
+            "Desktop notifications allow MailFlow to silently send emails in the background and pop-up a Windows toast message only when the campaign has entirely finished. You can explicitly disable this in the Settings tab.", 100)
 
         self.show_contacts_view()
 
@@ -195,6 +303,21 @@ class MailAttackerApp(ctk.CTk):
                         if "toggle_cmd" in widgets:
                             widgets["toggle_cmd"]()
 
+    def delete_selected_contacts(self):
+        if not hasattr(self, 'selected_rows') or not self.selected_rows:
+            return
+            
+        if messagebox.askyesno("Delete Selected", f"Are you sure you want to delete {len(self.selected_rows)} selected contacts?"):
+            ids_to_del = []
+            for r in self.selected_rows:
+                if r.winfo_exists() and hasattr(r, "contact_id"):
+                    ids_to_del.append(r.contact_id)
+                    
+            self.app_config["contacts"] = [c for c in self.app_config["contacts"] if c.get("id") not in ids_to_del]
+            self.save_config()
+            self.refresh_contacts_list()
+            self.selected_rows.clear()
+
     def validate_port(self, P):
         if P == "" or P.isdigit():
             return True
@@ -231,6 +354,10 @@ class MailAttackerApp(ctk.CTk):
             self.app_config["smtp"] = {}
         if "contacts" not in self.app_config:
             self.app_config["contacts"] = []
+        if "delay" not in self.app_config:
+            self.app_config["delay"] = 2
+        if "notifications" not in self.app_config:
+            self.app_config["notifications"] = True
 
         for i, c in enumerate(self.app_config["contacts"]):
             if "id" not in c:
@@ -252,19 +379,32 @@ class MailAttackerApp(ctk.CTk):
     def show_contacts_view(self):
         self.settings_frame.grid_forget()
         self.reports_frame.grid_forget()
+        self.help_frame.grid_forget()
         self.contacts_frame.grid(row=0, column=1, sticky="nsew")
+        self.send_all_button.grid(row=6, column=0, padx=15, pady=(15, 25))
         self.refresh_contacts_list()
 
     def show_settings_view(self):
         self.contacts_frame.grid_forget()
         self.reports_frame.grid_forget()
+        self.help_frame.grid_forget()
+        self.send_all_button.grid_remove()
         self.settings_frame.grid(row=0, column=1, sticky="nsew")
         
     def show_reports_view(self):
         self.contacts_frame.grid_forget()
         self.settings_frame.grid_forget()
+        self.help_frame.grid_forget()
+        self.send_all_button.grid_remove()
         self.reports_frame.grid(row=0, column=1, sticky="nsew")
         self.refresh_reports_list()
+
+    def show_help_view(self):
+        self.contacts_frame.grid_forget()
+        self.settings_frame.grid_forget()
+        self.reports_frame.grid_forget()
+        self.send_all_button.grid_remove()
+        self.help_frame.grid(row=0, column=1, sticky="nsew")
 
     def clear_reports(self):
         if messagebox.askyesno("Clear Reports", "Are you sure you want to clear all report logs?"):
@@ -376,14 +516,24 @@ class MailAttackerApp(ctk.CTk):
                     ctk.CTkLabel(att_frame, text=f"- {a}", anchor="w", text_color="lightgray").pack(fill="x", padx=10)
 
     def save_settings(self):
+        try:
+            delay = int(self.delay_var.get().strip())
+        except ValueError:
+            delay = 2
+            
         self.app_config["smtp"] = {
             "server": self.smtp_server_var.get().strip(),
             "port": self.smtp_port_var.get().strip(),
             "user": self.smtp_user_var.get().strip(),
             "password": self.smtp_pass_var.get().strip()
         }
+        self.app_config["delay"] = delay
+        self.app_config["date_format"] = self.date_format_var.get().strip()
+        self.app_config["time_format"] = self.time_format_var.get().strip()
+        self.app_config["notifications"] = self.notif_var.get()
+        
         self.save_config()
-        messagebox.showinfo("Success", "SMTP settings saved.")
+        messagebox.showinfo("Success", "Settings saved.")
 
     def refresh_contacts_list(self):
         for widget in self.contacts_scrollable_frame.winfo_children():
@@ -392,6 +542,99 @@ class MailAttackerApp(ctk.CTk):
         self.contact_widgets.clear()
         for c in self.app_config["contacts"]:
             self.create_contact_row(c)
+            
+    def filter_contacts_list(self, event=None):
+        query = self.search_var.get().strip().lower()
+        
+        for c in self.app_config["contacts"]:
+            widgets = self.contact_widgets.get(c.get("id"))
+            if not widgets or "row_frame" not in widgets:
+                continue
+                
+            row_frame = widgets["row_frame"]
+            
+            if not query:
+                row_frame.pack(fill="x", pady=5, padx=5)
+            else:
+                comp = c.get("company", "").lower()
+                email = c.get("email", "").lower()
+                if query in comp or query in email:
+                    row_frame.pack(fill="x", pady=5, padx=5)
+                else:
+                    row_frame.pack_forget()
+
+    def import_csv(self):
+        filepath = filedialog.askopenfilename(title="Select CSV to Import", filetypes=[("CSV files", "*.csv"), ("All files", "*.*")])
+        if not filepath:
+            return
+            
+        try:
+            with open(filepath, 'r', encoding='utf-8-sig') as f:
+                reader = csv.DictReader(f)
+                headers = reader.fieldnames or []
+                
+                # Try to map common header names, fallback to empty string if not found
+                def get_val(row, possible_keys):
+                    for k in possible_keys:
+                        for actual_k in headers:
+                            if actual_k and k.lower() == actual_k.lower().strip():
+                                return row[actual_k].strip()
+                    return ""
+
+                added_count = 0
+                for row in reader:
+                    email_val = get_val(row, ['email', 'e-mail', 'mail'])
+                    if not email_val:
+                        continue # Skip rows without email
+                        
+                    new_id = 0 if not self.app_config["contacts"] else max(int(c.get("id", 0)) for c in self.app_config["contacts"]) + 1
+                    
+                    new_contact = {
+                        "id": new_id,
+                        "company": get_val(row, ['company', 'name', 'client', 'contact']),
+                        "email": email_val,
+                        "subject": get_val(row, ['subject', 'title']),
+                        "message": get_val(row, ['message', 'body', 'text', 'content']),
+                        "attachments": [],
+                        "enabled": True
+                    }
+                    self.app_config["contacts"].append(new_contact)
+                    added_count += 1
+
+            if added_count > 0:
+                self.save_config()
+                self.refresh_contacts_list()
+                messagebox.showinfo("Import Success", f"Successfully imported {added_count} contacts.")
+            else:
+                messagebox.showwarning("Import Failed", "No valid contacts (with emails) found in the CSV.")
+                
+        except Exception as e:
+            messagebox.showerror("Import Error", f"Failed to import CSV:\n{str(e)}")
+
+    def export_csv(self):
+        if not self.app_config["contacts"]:
+            messagebox.showinfo("Export", "No contacts to export.")
+            return
+            
+        filepath = filedialog.asksaveasfilename(title="Export to CSV", defaultextension=".csv", filetypes=[("CSV files", "*.csv"), ("All files", "*.*")])
+        if not filepath:
+            return
+            
+        try:
+            with open(filepath, 'w', newline='', encoding='utf-8') as f:
+                fieldnames = ['company', 'email', 'subject', 'message']
+                writer = csv.DictWriter(f, fieldnames=fieldnames)
+                writer.writeheader()
+                for c in self.app_config["contacts"]:
+                    writer.writerow({
+                        'company': c.get('company', ''),
+                        'email': c.get('email', ''),
+                        'subject': c.get('subject', ''),
+                        'message': c.get('message', '')
+                    })
+            messagebox.showinfo("Export Success", "Contacts exported successfully.")
+        except Exception as e:
+            messagebox.showerror("Export Error", f"Failed to export CSV:\n{str(e)}")
 
     def create_contact_row(self, contact):
         row_frame = ctk.CTkFrame(self.contacts_scrollable_frame)
@@ -407,8 +650,8 @@ class MailAttackerApp(ctk.CTk):
         row_frame.grid_columnconfigure(6, weight=0)
         row_frame.grid_columnconfigure(7, weight=0)
         
-        drag_handle = ctk.CTkLabel(row_frame, text="☰", cursor="fleur", width=30)
-        drag_handle.grid(row=0, column=0, padx=(10, 5), pady=10)
+        drag_handle = ctk.CTkLabel(row_frame, text="", cursor="fleur", width=0)
+        drag_handle.grid(row=0, column=0, padx=(5, 0), pady=10)
 
         is_enabled = ctk.BooleanVar(value=contact.get('enabled', True))
         
@@ -691,7 +934,7 @@ class MailAttackerApp(ctk.CTk):
     def open_contact_popup(self, contact=None):
         popup = ctk.CTkToplevel(self)
         popup.title("Add New Contact" if contact is None else "Edit Contact")
-        popup.geometry("850x570")
+        popup.geometry("920x560")
         popup.resizable(False, False)
         popup.transient(self)
         popup.grab_set()
@@ -701,8 +944,8 @@ class MailAttackerApp(ctk.CTk):
             popup.iconbitmap(icon_path)
 
         popup.update_idletasks()
-        x = self.winfo_x() + (self.winfo_width() - 850) // 2
-        y = self.winfo_y() + (self.winfo_height() - 550) // 2
+        x = self.winfo_x() + (self.winfo_width() - 920) // 2
+        y = self.winfo_y() + (self.winfo_height() - 560) // 2
         popup.geometry(f"+{x}+{y}")
 
         comp_var = ctk.StringVar(value=contact.get("company", "") if contact else "")
@@ -713,15 +956,57 @@ class MailAttackerApp(ctk.CTk):
         existing_atts = contact.get("attachments", [legacy_att] if legacy_att else []) if contact else []
         files_var = ctk.StringVar(value="|".join(existing_atts))
 
+        def save_changes():
+            email_val = email_var.get().strip()
+            if not email_val:
+                messagebox.showerror("Error", "Recipient Email is required", parent=popup)
+                return
+
+            final_attachments = [p for p in files_var.get().split("|") if p]
+
+            if contact:
+                c_id = contact.get("id")
+                for c in self.app_config["contacts"]:
+                    if c.get("id") == c_id:
+                        c["company"] = comp_var.get().strip()
+                        c["email"] = email_val
+                        c["subject"] = subj_var.get().strip()
+                        c["message"] = msg_textbox.get("1.0", "end-1c").strip()
+                        c["attachments"] = final_attachments
+                        if "attachment" in c: del c["attachment"]
+                        break
+            else:
+                new_id = 0 if not self.app_config["contacts"] else max(int(c.get("id", 0)) for c in self.app_config["contacts"]) + 1
+                new_contact = {
+                    "id": new_id,
+                    "company": comp_var.get().strip(),
+                    "email": email_val,
+                    "subject": subj_var.get().strip(),
+                    "message": msg_textbox.get("1.0", "end-1c").strip(),
+                    "attachments": final_attachments,
+                    "enabled": True
+                }
+                self.app_config["contacts"].insert(0, new_contact)
+
+            self.save_config()
+            self.refresh_contacts_list()
+            popup.destroy()
+
+        bottom_bar = ctk.CTkFrame(popup, fg_color="transparent")
+        bottom_bar.pack(side="bottom", fill="x", padx=20, pady=(5, 15))
+        
+        save_btn_bottom = ctk.CTkButton(bottom_bar, text="Save Contact List" if contact else "Add to Contact List", command=save_changes, fg_color="#1f538d", height=40, font=ctk.CTkFont(size=14, weight="bold"))
+        save_btn_bottom.pack(side="right", padx=5)
+
         main_frame = ctk.CTkFrame(popup, fg_color="transparent")
-        main_frame.pack(fill="both", expand=True, padx=20, pady=(20, 0))
+        main_frame.pack(fill="both", expand=True, padx=20, pady=(15, 5))
         
-        left_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
-        left_frame.pack(side="left", fill="both", expand=True, padx=(0, 10))
+        left_frame = ctk.CTkFrame(main_frame, fg_color="transparent", width=300)
+        left_frame.pack(side="left", fill="both", expand=False, padx=(0, 10))
+        left_frame.pack_propagate(False)
         
-        right_frame = ctk.CTkFrame(main_frame, fg_color="transparent", width=350)
-        right_frame.pack(side="right", fill="both", expand=False)
-        right_frame.pack_propagate(False)
+        right_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
+        right_frame.pack(side="right", fill="both", expand=True)
 
         ctk.CTkLabel(left_frame, text="Company Name", anchor="w").pack(fill="x", padx=5, pady=config.LABEL_PAD_Y)
         ctk.CTkEntry(left_frame, textvariable=comp_var).pack(fill="x", padx=5, pady=config.ENTRY_PAD_Y)
@@ -732,17 +1017,65 @@ class MailAttackerApp(ctk.CTk):
         ctk.CTkLabel(left_frame, text="Subject", anchor="w").pack(fill="x", padx=5, pady=config.LABEL_PAD_Y)
         ctk.CTkEntry(left_frame, textvariable=subj_var).pack(fill="x", padx=5, pady=config.ENTRY_PAD_Y)
 
-        ctk.CTkLabel(left_frame, text="Message Body", anchor="w").pack(fill="x", padx=5, pady=config.LABEL_PAD_Y)
-        msg_textbox = ctk.CTkTextbox(left_frame, height=180)
-        msg_textbox.pack(fill="x", padx=5, pady=config.ENTRY_PAD_Y)
+        ctk.CTkLabel(right_frame, text="Message Body", anchor="w", font=ctk.CTkFont(weight="bold")).pack(fill="x", padx=5, pady=config.LABEL_PAD_Y)
+        
+        vars_frame = ctk.CTkFrame(right_frame, fg_color="transparent")
+        vars_frame.pack(fill="x", padx=5)
+        ctk.CTkLabel(vars_frame, text="Insert:", font=ctk.CTkFont(size=11, slant="italic"), text_color="gray").pack(side="left", padx=(0, 5))
+        
+        template_vars = ["{company_name}", "{email}", "{email_prefix}", "{date}", "{time}"]
+        for var in template_vars:
+            def make_insert(v=var):
+                def _insert():
+                    msg_textbox.insert(tk.INSERT, v)
+                return _insert
+            ctk.CTkButton(vars_frame, text=var, width=len(var)*8, height=22, fg_color="gray30", hover_color="gray40", font=ctk.CTkFont(size=11), command=make_insert()).pack(side="left", padx=2)
+        
+        msg_textbox = ctk.CTkTextbox(right_frame)
+        msg_textbox.pack(fill="both", expand=True, padx=5, pady=config.ENTRY_PAD_Y)
         if contact:
             msg_textbox.insert("1.0", contact.get("message", ""))
+            
+        # Message right-click paste/copy menu
+        msg_menu = tk.Menu(popup, tearoff=0)
+        
+        def copy_text():
+            try:
+                selected_text = ""
+                try: selected_text = msg_textbox.selection_get()
+                except tk.TclError: pass
+                
+                popup.clipboard_clear()
+                popup.clipboard_append(selected_text)
+            except Exception:
+                pass
+                
+        def paste_text():
+            try:
+                msg_textbox.insert(tk.INSERT, popup.clipboard_get())
+            except Exception:
+                pass
+                
+        msg_menu.add_command(label="Copy", command=copy_text)
+        msg_menu.add_command(label="Paste", command=paste_text)
+        
+        def show_msg_menu(event):
+            try:
+                msg_menu.tk_popup(event.x_root, event.y_root)
+            finally:
+                msg_menu.grab_release()
 
-        ctk.CTkLabel(right_frame, text="Attachments", anchor="w", font=ctk.CTkFont(weight="bold")).pack(fill="x", padx=5, pady=config.LABEL_PAD_Y)
+        msg_textbox._textbox.bind("<Button-3>", show_msg_menu)
+
+        ctk.CTkLabel(left_frame, text="Attachments", anchor="w", font=ctk.CTkFont(weight="bold")).pack(fill="x", padx=5, pady=config.LABEL_PAD_Y)
         
-        file_list_frame = ctk.CTkScrollableFrame(right_frame, fg_color=("gray85", "gray20"))
-        file_list_frame.pack(fill="both", expand=True, padx=5, pady=(0, 10))
+        prog_lbl = ctk.CTkLabel(left_frame, text="", text_color="gray")
+        prog_bar = ctk.CTkProgressBar(left_frame)
+        prog_bar.set(0)
         
+        file_list_frame = ctk.CTkScrollableFrame(left_frame, fg_color=("gray85", "gray20"))
+        file_list_frame.pack(fill="both", expand=True, padx=5, pady=(0, 5))
+
         def update_files_display(paths_list):
             for w in file_list_frame.winfo_children():
                 w.destroy()
@@ -780,9 +1113,6 @@ class MailAttackerApp(ctk.CTk):
                 del_btn.pack(side="right", padx=5)
                 
         update_files_display(existing_atts)
-        
-        btn_frame = ctk.CTkFrame(right_frame, fg_color="transparent")
-        btn_frame.pack(fill="x", padx=5, pady=(0, 10))
 
         def select_file():
             paths = filedialog.askopenfilenames()
@@ -806,7 +1136,7 @@ class MailAttackerApp(ctk.CTk):
                 
                 prog_lbl.pack(pady=2)
                 prog_bar.pack(fill="x", padx=20, pady=5)
-                save_btn.configure(state="disabled")
+                save_btn_bottom.configure(state="disabled")
                 popup.update_idletasks()
                 
                 final_paths = []
@@ -825,19 +1155,17 @@ class MailAttackerApp(ctk.CTk):
                             popup.update_idletasks()
                         except Exception as e:
                             messagebox.showerror("Error", f"Failed to copy {filename}: {e}", parent=popup)
-                            save_btn.configure(state="normal")
+                            save_btn_bottom.configure(state="normal")
                             prog_lbl.pack_forget()
                             prog_bar.pack_forget()
                             return
                             
                 files_var.set("|".join(final_paths))
                 update_files_display(final_paths)
-                save_btn.configure(state="normal")
+                save_btn_bottom.configure(state="normal")
                 prog_lbl.pack_forget()
                 prog_bar.pack_forget()
 
-        ctk.CTkButton(btn_frame, text="Select Files", command=select_file, width=120).pack(side="right", padx=5)
-        
         sync_state = {"folder": None, "active": False}
         
         def check_folder_sync():
@@ -879,50 +1207,8 @@ class MailAttackerApp(ctk.CTk):
                     sync_state["active"] = True
                     popup.after(1000, check_folder_sync)
 
-        ctk.CTkButton(btn_frame, text="Open Folder", command=open_attachment_folder, width=120, fg_color="gray50", hover_color="gray40").pack(side="left", padx=5)
-        
-        prog_bar = ctk.CTkProgressBar(right_frame)
-        prog_bar.set(0)
-        prog_lbl = ctk.CTkLabel(right_frame, text="", text_color="gray")
-
-        def save_changes():
-            email_val = email_var.get().strip()
-            if not email_val:
-                messagebox.showerror("Error", "Recipient Email is required", parent=popup)
-                return
-
-            final_attachments = [p for p in files_var.get().split("|") if p]
-
-            if contact:
-                c_id = contact.get("id")
-                for c in self.app_config["contacts"]:
-                    if c.get("id") == c_id:
-                        c["company"] = comp_var.get().strip()
-                        c["email"] = email_val
-                        c["subject"] = subj_var.get().strip()
-                        c["message"] = msg_textbox.get("1.0", "end-1c").strip()
-                        c["attachments"] = final_attachments
-                        if "attachment" in c: del c["attachment"]
-                        break
-            else:
-                new_id = 0 if not self.app_config["contacts"] else max(int(c.get("id", 0)) for c in self.app_config["contacts"]) + 1
-                new_contact = {
-                    "id": new_id,
-                    "company": comp_var.get().strip(),
-                    "email": email_val,
-                    "subject": subj_var.get().strip(),
-                    "message": msg_textbox.get("1.0", "end-1c").strip(),
-                    "attachments": final_attachments,
-                    "enabled": True
-                }
-                self.app_config["contacts"].insert(0, new_contact)
-
-            self.save_config()
-            self.refresh_contacts_list()
-            popup.destroy()
-
-        save_btn = ctk.CTkButton(popup, text="Save Contact List" if contact else "Add to Contact List", command=save_changes, fg_color="#1f538d")
-        save_btn.pack(pady=20)
+        ctk.CTkButton(bottom_bar, text="📂 Open Folder", command=open_attachment_folder, width=130, fg_color="gray50", hover_color="gray40").pack(side="left", padx=5)
+        ctk.CTkButton(bottom_bar, text="📎 Select Files", command=select_file, width=130).pack(side="left", padx=5)
 
     def send_all_mails(self):
         smtp_conf = self.app_config.get("smtp", {})
@@ -960,13 +1246,18 @@ class MailAttackerApp(ctk.CTk):
             })
             self.save_reports()
         
+        
+        stats = {"sent": 0, "error": 0, "skipped": 0}
+        
         try:
             with smtplib.SMTP(server, port) as smtp:
                 smtp.ehlo()
                 smtp.starttls()
                 smtp.login(user, password)
                 
-                for contact in contacts:
+                delay_seconds = int(self.app_config.get("delay", 2))
+                
+                for i, contact in enumerate(contacts):
                     c_id = contact.get("id")
                     email_to = contact.get("email", "Unknown")
                     subject = contact.get("subject", "")
@@ -978,6 +1269,7 @@ class MailAttackerApp(ctk.CTk):
                         msg = "Skipped (Disabled)"
                         if status_lbl: status_lbl.configure(text=msg, text_color="gray")
                         log_report(email_to, subject, msg, contact.get("message", ""))
+                        stats["skipped"] += 1
                         continue
                         
                     if status_lbl:
@@ -1004,12 +1296,33 @@ class MailAttackerApp(ctk.CTk):
                         if row_frame: row_frame.configure(border_width=0)
                         log_report(email_to, subject, msg, contact.get("message", ""), att_summary)
                         continue
-                        
+                        # Process Dynamic Template Variables
+                    now = datetime.datetime.now()
+                    
+                    date_map = {"DD/MM/YYYY": "%d/%m/%Y", "MM/DD/YYYY": "%m/%d/%Y", "YYYY-MM-DD": "%Y-%m-%d", "DD.MM.YYYY": "%d.%m.%Y"}
+                    time_map = {"24H": "%H:%M", "12H": "%I:%M %p"}
+                    
+                    date_fmt_key = self.app_config.get("date_format", "DD/MM/YYYY")
+                    time_fmt_key = self.app_config.get("time_format", "24H")
+                    
+                    date_fmt = date_fmt_key if "%" in date_fmt_key else date_map.get(date_fmt_key, "%d/%m/%Y")
+                    time_fmt = time_fmt_key if "%" in time_fmt_key else time_map.get(time_fmt_key, "%H:%M")
+                    
+                    current_date = now.strftime(date_fmt)
+                    current_time = now.strftime(time_fmt)
+                    
+                    dynamic_subject = subject.replace("{company_name}", contact.get("company", "")).replace("{email}", email_to).replace("{email_prefix}", email_to.split("@")[0] if "@" in email_to else email_to).replace("{date}", current_date).replace("{time}", current_time)
+                    msg_body = contact.get("message", "")
+                    msg_body = msg_body.replace("{company_name}", contact.get("company", ""))
+                    msg_body = msg_body.replace("{email}", email_to)
+                    msg_body = msg_body.replace("{email_prefix}", email_to.split("@")[0] if "@" in email_to else email_to)
+                    msg_body = msg_body.replace("{date}", current_date)
+                    msg_body = msg_body.replace("{time}", current_time)
+                    
                     msg = EmailMessage()
-                    msg['Subject'] = subject
+                    msg['Subject'] = dynamic_subject
                     msg['From'] = user
                     msg['To'] = email_to
-                    msg_body = contact.get("message", "")
                     msg.set_content(msg_body)
                     
                     file_attach_err = False
@@ -1040,10 +1353,31 @@ class MailAttackerApp(ctk.CTk):
                         if status_lbl: status_lbl.configure(text="Sent", text_color="green")
                         if row_frame: row_frame.configure(border_width=0)
                         log_report(email_to, subject, "Sent", msg_body, att_summary)
+                        stats["sent"] += 1
                     except Exception as e:
                         if status_lbl: status_lbl.configure(text="Error: Sending", text_color="red")
                         if row_frame: row_frame.configure(border_width=0)
                         log_report(email_to, subject, "Error: Sending", msg_body, att_summary)
+                        stats["error"] += 1
+                        
+                    # Anti-spam Delay (skip delay on the final contact)
+                    if i < len(contacts) - 1 and delay_seconds > 0:
+                        import time
+                        time.sleep(delay_seconds)
+
+            if self.app_config.get("notifications", True):
+                try:
+                    from win10toast import ToastNotifier
+                    toaster = ToastNotifier()
+                    toaster.show_toast(
+                        "MailFlow: Campaign Complete",
+                        f"Sent: {stats['sent']} | Errors: {stats['error']} | Skipped: {stats['skipped']}",
+                        icon_path=resource_path(os.path.join("assets", "logo.ico")),
+                        duration=5,
+                        threaded=True
+                    )
+                except Exception as ex:
+                    print(f"Failed to show Windows notification: {ex}")
 
         except Exception as e:
             messagebox.showerror("SMTP Connection Error", f"Failed to connect: {e}")

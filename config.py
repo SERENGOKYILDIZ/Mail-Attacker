@@ -1,7 +1,7 @@
 # config.py
 
 APP_NAME = "MailFlow"
-APP_VERSION = "v1.2.1"
+APP_VERSION = "v1.3.0"
 
 # Window settings
 WINDOW_WIDTH = 1100

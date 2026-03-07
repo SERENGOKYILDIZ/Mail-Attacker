@@ -44,3 +44,6 @@ build/
 dist/
 release/
 *.spec
+
+# My Scpecial Files
+NOT.txt
