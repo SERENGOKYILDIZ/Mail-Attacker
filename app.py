@@ -293,9 +293,22 @@ class MailAttackerApp(ctk.CTk):
                 continue
 
             summary_text = f"Send Batch - {run.get('date', 'Unknown Time')} ({len(deliveries)} emails)"
-            btn = ctk.CTkButton(run_frame, text=summary_text, anchor="w", fg_color="#1f538d",
+            
+            header_frame = ctk.CTkFrame(run_frame, fg_color="transparent")
+            header_frame.pack(fill="x")
+            
+            btn = ctk.CTkButton(header_frame, text=summary_text, anchor="w", fg_color="#1f538d",
                                 command=lambda sf=subframe: self.toggle_report_group(sf))
-            btn.pack(fill="x")
+            btn.pack(side="left", fill="x", expand=True)
+            
+            def delete_batch(r=run):
+                if messagebox.askyesno("Delete Report Batch", f"Are you sure you want to delete the report batch from {r.get('date')}?"):
+                    self.reports_data.remove(r)
+                    self.save_reports()
+                    self.refresh_reports_list()
+                    
+            del_btn = ctk.CTkButton(header_frame, text="X", width=30, fg_color="transparent", text_color="#ff5555", hover_color="#8b0000", command=delete_batch)
+            del_btn.pack(side="right", padx=(5, 0))
             
             for rep in deliveries:
                 row = ctk.CTkFrame(subframe, fg_color="transparent", cursor="hand2")
@@ -343,16 +356,24 @@ class MailAttackerApp(ctk.CTk):
         ctk.CTkLabel(info_frame, text=f"To: {rep_data.get('email', '')}", font=ctk.CTkFont(weight="bold"), anchor="w").pack(fill="x")
         ctk.CTkLabel(info_frame, text=f"Subject: {rep_data.get('subject', '')}", font=ctk.CTkFont(weight="bold"), anchor="w").pack(fill="x", pady=(5,0))
         
-        att_name = rep_data.get('attachment', '') or "None"
-        ctk.CTkLabel(info_frame, text=f"Attachment: {att_name}", font=ctk.CTkFont(weight="bold"), anchor="w", text_color="lightgray").pack(fill="x", pady=(5,0))
-        
         msg_frame = ctk.CTkFrame(self.report_popup)
-        msg_frame.pack(fill="both", expand=True, padx=20, pady=(0, 20))
+        msg_frame.pack(fill="both", expand=True, padx=20, pady=(5, 10))
         
         textbox = ctk.CTkTextbox(msg_frame)
         textbox.pack(fill="both", expand=True, padx=2, pady=2)
         textbox.insert("1.0", rep_data.get("message", "No message content recorded."))
         textbox.configure(state="disabled")
+        
+        att_str = rep_data.get('attachment', '')
+        if att_str:
+            att_frame = ctk.CTkFrame(self.report_popup, fg_color="transparent")
+            att_frame.pack(fill="x", padx=20, pady=(0, 20))
+            ctk.CTkLabel(att_frame, text="Attachments:", font=ctk.CTkFont(weight="bold"), anchor="w", text_color="lightgray").pack(fill="x")
+            
+            att_list = [a.strip() for a in att_str.split(",")]
+            for a in att_list:
+                if a:
+                    ctk.CTkLabel(att_frame, text=f"- {a}", anchor="w", text_color="lightgray").pack(fill="x", padx=10)
 
     def save_settings(self):
         self.app_config["smtp"] = {
@@ -670,7 +691,8 @@ class MailAttackerApp(ctk.CTk):
     def open_contact_popup(self, contact=None):
         popup = ctk.CTkToplevel(self)
         popup.title("Add New Contact" if contact is None else "Edit Contact")
-        popup.geometry("600x650")
+        popup.geometry("850x570")
+        popup.resizable(False, False)
         popup.transient(self)
         popup.grab_set()
 
@@ -679,48 +701,189 @@ class MailAttackerApp(ctk.CTk):
             popup.iconbitmap(icon_path)
 
         popup.update_idletasks()
-        x = self.winfo_x() + (self.winfo_width() - 600) // 2
-        y = self.winfo_y() + (self.winfo_height() - 650) // 2
+        x = self.winfo_x() + (self.winfo_width() - 850) // 2
+        y = self.winfo_y() + (self.winfo_height() - 550) // 2
         popup.geometry(f"+{x}+{y}")
 
         comp_var = ctk.StringVar(value=contact.get("company", "") if contact else "")
         email_var = ctk.StringVar(value=contact.get("email", "") if contact else "")
         subj_var = ctk.StringVar(value=contact.get("subject", "") if contact else "")
-        file_var = ctk.StringVar(value=contact.get("attachment", "") if contact else "")
+        
+        legacy_att = contact.get("attachment", "") if contact else ""
+        existing_atts = contact.get("attachments", [legacy_att] if legacy_att else []) if contact else []
+        files_var = ctk.StringVar(value="|".join(existing_atts))
 
-        form_frame = ctk.CTkScrollableFrame(popup, fg_color="transparent")
-        form_frame.pack(fill="both", expand=True, padx=20, pady=20)
+        main_frame = ctk.CTkFrame(popup, fg_color="transparent")
+        main_frame.pack(fill="both", expand=True, padx=20, pady=(20, 0))
+        
+        left_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
+        left_frame.pack(side="left", fill="both", expand=True, padx=(0, 10))
+        
+        right_frame = ctk.CTkFrame(main_frame, fg_color="transparent", width=350)
+        right_frame.pack(side="right", fill="both", expand=False)
+        right_frame.pack_propagate(False)
 
-        ctk.CTkLabel(form_frame, text="Company Name", anchor="w").pack(fill="x", padx=5, pady=config.LABEL_PAD_Y)
-        ctk.CTkEntry(form_frame, textvariable=comp_var).pack(fill="x", padx=5, pady=config.ENTRY_PAD_Y)
+        ctk.CTkLabel(left_frame, text="Company Name", anchor="w").pack(fill="x", padx=5, pady=config.LABEL_PAD_Y)
+        ctk.CTkEntry(left_frame, textvariable=comp_var).pack(fill="x", padx=5, pady=config.ENTRY_PAD_Y)
 
-        ctk.CTkLabel(form_frame, text="Recipient Email", anchor="w").pack(fill="x", padx=5, pady=config.LABEL_PAD_Y)
-        ctk.CTkEntry(form_frame, textvariable=email_var).pack(fill="x", padx=5, pady=config.ENTRY_PAD_Y)
+        ctk.CTkLabel(left_frame, text="Recipient Email", anchor="w").pack(fill="x", padx=5, pady=config.LABEL_PAD_Y)
+        ctk.CTkEntry(left_frame, textvariable=email_var).pack(fill="x", padx=5, pady=config.ENTRY_PAD_Y)
 
-        ctk.CTkLabel(form_frame, text="Subject", anchor="w").pack(fill="x", padx=5, pady=config.LABEL_PAD_Y)
-        ctk.CTkEntry(form_frame, textvariable=subj_var).pack(fill="x", padx=5, pady=config.ENTRY_PAD_Y)
+        ctk.CTkLabel(left_frame, text="Subject", anchor="w").pack(fill="x", padx=5, pady=config.LABEL_PAD_Y)
+        ctk.CTkEntry(left_frame, textvariable=subj_var).pack(fill="x", padx=5, pady=config.ENTRY_PAD_Y)
 
-        ctk.CTkLabel(form_frame, text="Message Body", anchor="w").pack(fill="x", padx=5, pady=config.LABEL_PAD_Y)
-        msg_textbox = ctk.CTkTextbox(form_frame, height=120)
+        ctk.CTkLabel(left_frame, text="Message Body", anchor="w").pack(fill="x", padx=5, pady=config.LABEL_PAD_Y)
+        msg_textbox = ctk.CTkTextbox(left_frame, height=180)
         msg_textbox.pack(fill="x", padx=5, pady=config.ENTRY_PAD_Y)
         if contact:
             msg_textbox.insert("1.0", contact.get("message", ""))
 
-        ctk.CTkLabel(form_frame, text="Attachment File", anchor="w").pack(fill="x", padx=5, pady=config.LABEL_PAD_Y)
+        ctk.CTkLabel(right_frame, text="Attachments", anchor="w", font=ctk.CTkFont(weight="bold")).pack(fill="x", padx=5, pady=config.LABEL_PAD_Y)
         
-        file_frame = ctk.CTkFrame(form_frame, fg_color="transparent")
-        file_frame.pack(fill="x", padx=5, pady=config.ENTRY_PAD_Y)
+        file_list_frame = ctk.CTkScrollableFrame(right_frame, fg_color=("gray85", "gray20"))
+        file_list_frame.pack(fill="both", expand=True, padx=5, pady=(0, 10))
         
-        file_lbl = ctk.CTkLabel(file_frame, text=os.path.basename(file_var.get()) if file_var.get() else "No file selected", anchor="w")
-        file_lbl.pack(side="left", fill="x", expand=True)
+        def update_files_display(paths_list):
+            for w in file_list_frame.winfo_children():
+                w.destroy()
+            
+            valid_paths = [p for p in paths_list if p]
+            if not valid_paths:
+                ctk.CTkLabel(file_list_frame, text="No files selected", text_color="gray").pack(anchor="w", padx=5, pady=2)
+                return
+                
+            def make_delete_cmd(path_to_delete):
+                def _delete():
+                    try:
+                        if os.path.exists(path_to_delete):
+                            os.remove(path_to_delete)
+                    except Exception as e:
+                        print(f"Error deleting file: {e}")
+                        
+                    current_paths = files_var.get().split("|")
+                    if path_to_delete in current_paths:
+                        current_paths.remove(path_to_delete)
+                        
+                    new_val = "|".join([p for p in current_paths if p])
+                    files_var.set(new_val)
+                    update_files_display(new_val.split("|") if new_val else [])
+                return _delete
+                
+            for p in valid_paths:
+                item_frame = ctk.CTkFrame(file_list_frame, fg_color="transparent")
+                item_frame.pack(fill="x", pady=2)
+                
+                lbl = ctk.CTkLabel(item_frame, text=os.path.basename(p), anchor="w")
+                lbl.pack(side="left", fill="x", expand=True, padx=5)
+                
+                del_btn = ctk.CTkButton(item_frame, text="X", width=20, fg_color="transparent", text_color="#ff5555", hover_color="#8b0000", command=make_delete_cmd(p))
+                del_btn.pack(side="right", padx=5)
+                
+        update_files_display(existing_atts)
+        
+        btn_frame = ctk.CTkFrame(right_frame, fg_color="transparent")
+        btn_frame.pack(fill="x", padx=5, pady=(0, 10))
 
         def select_file():
-            path = filedialog.askopenfilename()
-            if path:
-                file_var.set(path)
-                file_lbl.configure(text=os.path.basename(path))
+            paths = filedialog.askopenfilenames()
+            if paths:
+                email_val = email_var.get().strip()
+                profile_name = comp_var.get().strip() or email_val
+                safe_profile_name = "".join(c for c in profile_name if c.isalnum() or c in (" ", "-", "_", ".", "@")).strip()
+                if not safe_profile_name:
+                    safe_profile_name = f"profile_{int(time.time())}"
+                    
+                target_dir = os.path.join(config.ATTACHMENTS_DIR, safe_profile_name)
+                
+                import shutil
+                if os.path.exists(target_dir):
+                    try:
+                        shutil.rmtree(target_dir)
+                    except Exception as e:
+                        print(f"Error clearing old dir: {e}")
+                
+                os.makedirs(target_dir, exist_ok=True)
+                
+                prog_lbl.pack(pady=2)
+                prog_bar.pack(fill="x", padx=20, pady=5)
+                save_btn.configure(state="disabled")
+                popup.update_idletasks()
+                
+                final_paths = []
+                total = len(paths)
+                
+                for i, p in enumerate(paths):
+                    if os.path.exists(p):
+                        try:
+                            filename = os.path.basename(p)
+                            target_path = os.path.join(target_dir, filename)
+                            shutil.copy2(p, target_path)
+                            final_paths.append(target_path)
+                            
+                            prog_bar.set((i + 1) / total)
+                            prog_lbl.configure(text=f"Copying files... ({i+1}/{total})")
+                            popup.update_idletasks()
+                        except Exception as e:
+                            messagebox.showerror("Error", f"Failed to copy {filename}: {e}", parent=popup)
+                            save_btn.configure(state="normal")
+                            prog_lbl.pack_forget()
+                            prog_bar.pack_forget()
+                            return
+                            
+                files_var.set("|".join(final_paths))
+                update_files_display(final_paths)
+                save_btn.configure(state="normal")
+                prog_lbl.pack_forget()
+                prog_bar.pack_forget()
 
-        ctk.CTkButton(file_frame, text="Select File", command=select_file, width=120).pack(side="right", padx=5)
+        ctk.CTkButton(btn_frame, text="Select Files", command=select_file, width=120).pack(side="right", padx=5)
+        
+        sync_state = {"folder": None, "active": False}
+        
+        def check_folder_sync():
+            if not popup.winfo_exists() or not sync_state["active"] or not sync_state["folder"]:
+                return
+                
+            folder = sync_state["folder"]
+            if os.path.exists(folder):
+                current_files = [os.path.join(folder, f) for f in os.listdir(folder) if os.path.isfile(os.path.join(folder, f))]
+                current_files_str = "|".join(current_files)
+                
+                if current_files_str != files_var.get():
+                    files_var.set(current_files_str)
+                    update_files_display(current_files)
+                    
+            popup.after(1000, check_folder_sync)
+
+        def open_attachment_folder():
+            paths = files_var.get().split("|")
+            folder_to_open = None
+            
+            if paths and paths[0] and os.path.exists(os.path.dirname(paths[0])):
+                folder_to_open = os.path.dirname(paths[0])
+            else:
+                email_val = email_var.get().strip()
+                profile_name = comp_var.get().strip() or email_val
+                safe_profile_name = "".join(c for c in profile_name if c.isalnum() or c in (" ", "-", "_", ".", "@")).strip()
+                if not safe_profile_name:
+                    safe_profile_name = f"profile_{int(time.time())}"
+                folder_to_open = os.path.join(config.ATTACHMENTS_DIR, safe_profile_name)
+                os.makedirs(folder_to_open, exist_ok=True)
+            
+            if os.path.exists(folder_to_open):
+                import subprocess
+                subprocess.Popen(f'explorer "{folder_to_open}"')
+                
+                if not sync_state["active"]:
+                    sync_state["folder"] = folder_to_open
+                    sync_state["active"] = True
+                    popup.after(1000, check_folder_sync)
+
+        ctk.CTkButton(btn_frame, text="Open Folder", command=open_attachment_folder, width=120, fg_color="gray50", hover_color="gray40").pack(side="left", padx=5)
+        
+        prog_bar = ctk.CTkProgressBar(right_frame)
+        prog_bar.set(0)
+        prog_lbl = ctk.CTkLabel(right_frame, text="", text_color="gray")
 
         def save_changes():
             email_val = email_var.get().strip()
@@ -728,38 +891,7 @@ class MailAttackerApp(ctk.CTk):
                 messagebox.showerror("Error", "Recipient Email is required", parent=popup)
                 return
 
-            new_file_path = file_var.get()
-            attachment_rel = contact.get("attachment", "") if contact else ""
-
-            if new_file_path and new_file_path != attachment_rel and os.path.exists(new_file_path):
-                filename = os.path.basename(new_file_path)
-                
-                profile_name = comp_var.get().strip() or email_val
-                safe_profile_name = "".join(c for c in profile_name if c.isalnum() or c in (" ", "-", "_", ".", "@")).strip()
-                if not safe_profile_name:
-                    safe_profile_name = "profile"
-                    
-                target_dir = os.path.join(config.ATTACHMENTS_DIR, safe_profile_name)
-                
-                try:
-                    if not os.path.exists(target_dir):
-                        os.makedirs(target_dir)
-                        
-                    target_path = os.path.join(target_dir, filename)
-                    
-                    idx = 1
-                    while os.path.exists(target_path) and os.path.abspath(target_path) != os.path.abspath(new_file_path):
-                        name, ext = os.path.splitext(filename)
-                        target_path = os.path.join(target_dir, f"{name}_{idx}{ext}")
-                        idx += 1
-                    if os.path.abspath(target_path) != os.path.abspath(new_file_path):
-                        shutil.copy2(new_file_path, target_path)
-                    attachment_rel = target_path
-                except Exception as e:
-                    messagebox.showerror("Error", f"Failed to copy file: {e}", parent=popup)
-                    return
-            elif not new_file_path:
-                attachment_rel = ""
+            final_attachments = [p for p in files_var.get().split("|") if p]
 
             if contact:
                 c_id = contact.get("id")
@@ -769,7 +901,8 @@ class MailAttackerApp(ctk.CTk):
                         c["email"] = email_val
                         c["subject"] = subj_var.get().strip()
                         c["message"] = msg_textbox.get("1.0", "end-1c").strip()
-                        c["attachment"] = attachment_rel
+                        c["attachments"] = final_attachments
+                        if "attachment" in c: del c["attachment"]
                         break
             else:
                 new_id = 0 if not self.app_config["contacts"] else max(int(c.get("id", 0)) for c in self.app_config["contacts"]) + 1
@@ -779,7 +912,7 @@ class MailAttackerApp(ctk.CTk):
                     "email": email_val,
                     "subject": subj_var.get().strip(),
                     "message": msg_textbox.get("1.0", "end-1c").strip(),
-                    "attachment": attachment_rel,
+                    "attachments": final_attachments,
                     "enabled": True
                 }
                 self.app_config["contacts"].insert(0, new_contact)
@@ -788,7 +921,8 @@ class MailAttackerApp(ctk.CTk):
             self.refresh_contacts_list()
             popup.destroy()
 
-        ctk.CTkButton(popup, text="Save Contact List" if contact else "Add to Contact List", command=save_changes, fg_color="#1f538d").pack(pady=20)
+        save_btn = ctk.CTkButton(popup, text="Save Contact List" if contact else "Add to Contact List", command=save_changes, fg_color="#1f538d")
+        save_btn.pack(pady=20)
 
     def send_all_mails(self):
         smtp_conf = self.app_config.get("smtp", {})
@@ -851,21 +985,24 @@ class MailAttackerApp(ctk.CTk):
                     if row_frame:
                         row_frame.configure(border_width=2, border_color="yellow")
                     
-                    attachment_path = contact.get("attachment")
-                    att_base = os.path.basename(attachment_path) if attachment_path else ""
+                    legacy_att = contact.get("attachment")
+                    atts_list = contact.get("attachments", [legacy_att] if legacy_att else [])
+                    att_bases = [os.path.basename(p) for p in atts_list if p]
+                    att_summary = ", ".join(att_bases) if att_bases else ""
                     
                     if not email_to or email_to == "Unknown":
                         msg = "Error: No Email"
                         if status_lbl: status_lbl.configure(text=msg, text_color="red")
                         if row_frame: row_frame.configure(border_width=0)
-                        log_report(email_to, subject, msg, contact.get("message", ""), att_base)
+                        log_report(email_to, subject, msg, contact.get("message", ""), att_summary)
                         continue
                         
-                    if attachment_path and not os.path.exists(attachment_path):
-                        msg = "Error: File Missing"
+                    missing_files = [p for p in atts_list if p and not os.path.exists(p)]
+                    if missing_files:
+                        msg = "Error: File(s) Missing"
                         if status_lbl: status_lbl.configure(text=msg, text_color="red")
                         if row_frame: row_frame.configure(border_width=0)
-                        log_report(email_to, subject, msg, contact.get("message", ""), att_base)
+                        log_report(email_to, subject, msg, contact.get("message", ""), att_summary)
                         continue
                         
                     msg = EmailMessage()
@@ -876,23 +1013,25 @@ class MailAttackerApp(ctk.CTk):
                     msg.set_content(msg_body)
                     
                     file_attach_err = False
-                    if attachment_path and os.path.exists(attachment_path):
-                        try:
-                            with open(attachment_path, 'rb') as f:
-                                file_data = f.read()
-                                file_name = os.path.basename(attachment_path)
-                            mime_type, _ = mimetypes.guess_type(file_name)
-                            if mime_type is None:
-                                mime_type = 'application/octet-stream'
-                            maintype, subtype = mime_type.split('/', 1)
-                            msg.add_attachment(file_data, maintype=maintype, subtype=subtype, filename=file_name)
-                        except Exception as e:
-                            errMsg = "Error: Attaching file"
-                            if status_lbl: status_lbl.configure(text=errMsg, text_color="red")
-                            if row_frame: row_frame.configure(border_width=0)
-                            log_report(email_to, subject, errMsg, msg_body, att_base)
-                            file_attach_err = True
-                            
+                    for attachment_path in atts_list:
+                        if attachment_path and os.path.exists(attachment_path):
+                            try:
+                                with open(attachment_path, 'rb') as f:
+                                    file_data = f.read()
+                                    file_name = os.path.basename(attachment_path)
+                                mime_type, _ = mimetypes.guess_type(file_name)
+                                if mime_type is None:
+                                    mime_type = 'application/octet-stream'
+                                maintype, subtype = mime_type.split('/', 1)
+                                msg.add_attachment(file_data, maintype=maintype, subtype=subtype, filename=file_name)
+                            except Exception as e:
+                                errMsg = f"Error: Attaching {file_name}"
+                                if status_lbl: status_lbl.configure(text=errMsg, text_color="red")
+                                if row_frame: row_frame.configure(border_width=0)
+                                log_report(email_to, subject, errMsg, msg_body, att_summary)
+                                file_attach_err = True
+                                break
+                                
                     if file_attach_err:
                         continue
 
@@ -900,11 +1039,11 @@ class MailAttackerApp(ctk.CTk):
                         smtp.send_message(msg)
                         if status_lbl: status_lbl.configure(text="Sent", text_color="green")
                         if row_frame: row_frame.configure(border_width=0)
-                        log_report(email_to, subject, "Sent", msg_body, att_base)
+                        log_report(email_to, subject, "Sent", msg_body, att_summary)
                     except Exception as e:
                         if status_lbl: status_lbl.configure(text="Error: Sending", text_color="red")
                         if row_frame: row_frame.configure(border_width=0)
-                        log_report(email_to, subject, "Error: Sending", msg_body, att_base)
+                        log_report(email_to, subject, "Error: Sending", msg_body, att_summary)
 
         except Exception as e:
             messagebox.showerror("SMTP Connection Error", f"Failed to connect: {e}")

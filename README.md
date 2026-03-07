@@ -8,7 +8,7 @@ Whether you're sending out newsletters, corporate announcements, or individual t
 
 ## Downloads
 
-[![Download MailFlow](https://img.shields.io/badge/Download-MailFlow_v1.2.0-blue?style=for-the-badge&logo=windows)](https://github.com/SERENGOKYILDIZ/Mail-Attacker/releases/download/v1.2.0/MailFlow_v1.2.0.exe)
+[![Download MailFlow](https://img.shields.io/badge/Download-MailFlow_v1.2.1-blue?style=for-the-badge&logo=windows)](https://github.com/SERENGOKYILDIZ/Mail-Attacker/releases/download/v1.2.1/MailFlow_v1.2.1.exe)
 
 ## 👨‍💻 Author
 
@@ -24,13 +24,16 @@ Whether you're sending out newsletters, corporate announcements, or individual t
 * **Modern, Responsive UI:** A beautiful dark-themed interface built with `customtkinter` featuring intuitive navigation between Contacts, Settings, and Reports.
 * **Advanced Contact Management:** 
   * Add, edit, and delete contacts directly within a scrollable, proportionate grid view.
+  * **Optimized Two-Column Editor:** A fixed-size, two-column popup window cleanly separates text inputs from file attachments.
+  * **Multi-Attachment Support:** Attach multiple files to a single contact at once. Files copy over with an animated UI progress bar.
+  * **Dynamic Folder Sync:** Open your contact's attachment folder directly from the app. Any manual file changes you make in Windows Explorer automatically sync back to the app in real-time.
   * **Drag and Drop:** Easily reorder your mailing list by dragging contact cards.
   * **Multi-Selection:** Hold `CTRL` or `SHIFT` to select multiple contacts at once for bulk deletion or toggling.
   * **Enable/Disable:** Temporarily skip users during a bulk send without deleting them from your database.
 * **Comprehensive Reporting System:** 
-  * Every bulk send operation is logged chronologically under collapsible batch timestamps.
+  * Every bulk send operation is logged chronologically under collapsible batch timestamps. Easily delete old batches with a single click.
   * View exactly who received an email, what the subject was, and whether it was successfully delivered or encountered an error.
-  * Click on any report row to view the exact body of the message and the attachment name sent to that user.
+  * Click on any report row to view the exact body of the message and a vertically formatted list of all attached files sent to that user.
 * **Bulletproof SMTP Configuration:** 
   * Offers preset configurations for major providers (Gmail, Office365, Yahoo) via a dropdown menu.
   * Built-in validation ensures ports are numeric and email formats are correct before saving.
