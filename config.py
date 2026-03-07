@@ -1,7 +1,7 @@
 # config.py
 
 APP_NAME = "MailFlow"
-APP_VERSION = "v1.1.1"
+APP_VERSION = "v1.2.0"
 
 # Window settings
 WINDOW_WIDTH = 1100
@@ -25,4 +25,5 @@ if not os.path.exists(APP_DIR):
     os.makedirs(APP_DIR)
 
 CONFIG_FILE = os.path.join(APP_DIR, "config.json")
+REPORTS_FILE = os.path.join(APP_DIR, "reports.json")
 ATTACHMENTS_DIR = os.path.join(APP_DIR, "attachments")
