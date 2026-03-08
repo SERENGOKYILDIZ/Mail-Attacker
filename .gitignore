@@ -42,7 +42,7 @@ ENV/
 # Build artifacts and PyInstaller exclusions
 build/
 dist/
-release/
+releases/
 *.spec
 
 # My Scpecial Files
