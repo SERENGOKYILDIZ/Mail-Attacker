@@ -28,13 +28,16 @@ Whether you're sending out newsletters, corporate announcements, or individual t
 * **Advanced Contact Management:** 
   * Add, edit, and delete contacts directly within a scrollable, proportionate grid view.
   * **Optimized Two-Column Editor:** A two-column popup cleanly separates text inputs and attachments (left) from the message body (right).
+  * **Favorites & Notes:** Star specific contacts as favorites and write persistent internal notes about them in a dedicated 'Favorites' sidebar panel.
+  * **Instant Sorting & Filtering:** Quickly filter your list using one-click buttons (All, Active, Inactive, Favorites) or sort them alphabetically (A-Z) without any UI lag.
+  * **Lightning Fast Navigation:** Enjoy accelerated 4x native mouse-wheel scrolling across all long lists and menus for a seamless browser-like experience.
   * **Clickable Template Variables:** Insert dynamic variables like `{company_name}`, `{email}`, `{email_prefix}`, `{date}`, and `{time}` into your message with a single click.
-  * **Right-Click Context Menu:** Copy, paste, toggle, and delete contacts or message text via intuitive right-click menus.
+  * **Right-Click Context Menu:** Copy, paste, toggle, favorite, and delete contacts or message text via intuitive right-click menus.
   * **Multi-Attachment Support:** Attach multiple files to a single contact at once. Files copy over with an animated UI progress bar. Adding files preserves existing attachments — only new files are copied, and same-named files are silently updated.
   * **Dynamic Folder Sync:** Open your contact's attachment folder directly from the app. Any manual file changes you make in Windows Explorer automatically sync back to the app in real-time.
   * **CSV Import / Export:** Seamlessly migrate vast contact lists in seconds using standard `.csv` files.
   * **Live Search & Filter:** Quickly locate specific contacts using the real-time search bar.
-  * **Multi-Selection:** Hold `CTRL`/`SHIFT` for bulk selection, toggle, or deletion.
+  * **Multi-Selection:** Hold `CTRL`/`SHIFT` for bulk selection, toggle, favoriting, or deletion.
   * **Enable/Disable:** Temporarily skip users during a bulk send without deleting them from your database.
 * **Smart Mailing Engine & Dynamic Feedback:** 
   * **Dynamic Template Variables:** Personalize emails at scale by inserting `{company_name}`, `{email}`, `{email_prefix}`, `{date}`, or `{time}` directly into your subject or message body.

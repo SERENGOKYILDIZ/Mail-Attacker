@@ -127,6 +127,30 @@ class MailAttackerApp(ctk.CTk):
         self.search_entry.pack(fill="x", padx=config.PAD_X, pady=(0, 5))
         self.search_entry.bind("<KeyRelease>", self.filter_contacts_list)
 
+        # Sort and Filter Panel
+        self.sort_frame = ctk.CTkFrame(self.contacts_frame, fg_color="transparent")
+        self.sort_frame.pack(fill="x", padx=config.PAD_X, pady=(0, 5))
+
+        self.sort_var = ctk.StringVar(value="all")
+        
+        self.btn_sort_all = ctk.CTkRadioButton(self.sort_frame, text=t("sort_all"), variable=self.sort_var, value="all", command=self.apply_sorting)
+        self.btn_sort_all.pack(side="left", padx=(0, 10))
+        
+        self.btn_sort_active = ctk.CTkRadioButton(self.sort_frame, text=t("sort_active"), variable=self.sort_var, value="active", command=self.apply_sorting)
+        self.btn_sort_active.pack(side="left", padx=(0, 10))
+        
+        self.btn_sort_inactive = ctk.CTkRadioButton(self.sort_frame, text=t("sort_inactive"), variable=self.sort_var, value="inactive", command=self.apply_sorting)
+        self.btn_sort_inactive.pack(side="left", padx=(0, 10))
+
+        self.btn_sort_favs = ctk.CTkRadioButton(self.sort_frame, text=t("sort_favs"), variable=self.sort_var, value="favs", command=self.apply_sorting)
+        self.btn_sort_favs.pack(side="left", padx=(0, 10))
+
+        # This one is a checkbox/button overlay since "By Name" is an ordering override, but we can treat it as part of the radio group or a separate toggle. 
+        # Using a separate button makes more sense for A-Z sorting that stacks with other filters.
+        self.sort_name_var = ctk.BooleanVar(value=False)
+        self.btn_sort_name = ctk.CTkCheckBox(self.sort_frame, text=t("sort_name"), variable=self.sort_name_var, command=self.apply_sorting)
+        self.btn_sort_name.pack(side="right")
+
         self.contacts_scrollable_frame = ctk.CTkScrollableFrame(self.contacts_frame)
         self.contacts_scrollable_frame.pack(fill="both", expand=True, padx=config.PAD_X, pady=(5, 20))
         
@@ -761,33 +785,61 @@ class MailAttackerApp(ctk.CTk):
                 clean_args.append(arg)
             os.execv(sys.executable, [sys.executable] + clean_args + ["--view", "settings"])
 
-    def refresh_contacts_list(self):
-        for widget in self.contacts_scrollable_frame.winfo_children():
-            widget.destroy()
-        
-        self.contact_widgets.clear()
-        for c in self.app_config["contacts"]:
-            self.create_contact_row(c)
-            
+    def apply_sorting(self, event=None):
+        # We no longer destroy all widgets; instead we just un-pack and re-pack them in order.
+        self.filter_contacts_list()
+
     def filter_contacts_list(self, event=None):
         query = self.search_var.get().strip().lower()
+        sort_mode = self.sort_var.get()
         
-        for c in self.app_config["contacts"]:
+        # Step 1: Hide all current widgets so we can re-pack them in the new order
+        for widgets in self.contact_widgets.values():
+            if "row_frame" in widgets:
+                widgets["row_frame"].pack_forget()
+
+        # Step 2: Determine order
+        contacts_to_render = self.app_config["contacts"]
+        if getattr(self, "sort_name_var", None) and self.sort_name_var.get():
+            contacts_to_render = sorted(contacts_to_render, key=lambda x: x.get("company", "").lower())
+        
+        # Step 3: Filter and pack visible ones
+        for c in contacts_to_render:
             widgets = self.contact_widgets.get(c.get("id"))
             if not widgets or "row_frame" not in widgets:
                 continue
                 
             row_frame = widgets["row_frame"]
             
-            if not query:
-                row_frame.pack(fill="x", pady=5, padx=5)
-            else:
+            show_item = True
+            if sort_mode == "active" and not c.get("enabled", True):
+                show_item = False
+            elif sort_mode == "inactive" and c.get("enabled", True):
+                show_item = False
+            elif sort_mode == "favs" and not c.get("favorite", False):
+                show_item = False
+                
+            if show_item and query:
                 comp = c.get("company", "").lower()
                 email = c.get("email", "").lower()
-                if query in comp or query in email:
-                    row_frame.pack(fill="x", pady=5, padx=5)
-                else:
-                    row_frame.pack_forget()
+                if query not in comp and query not in email:
+                    show_item = False
+            
+            if show_item:
+                row_frame.pack(fill="x", pady=5, padx=5)
+
+    def refresh_contacts_list(self):
+        # This function should only be called when loading config, adding, or deleting contacts.
+        for widget in self.contacts_scrollable_frame.winfo_children():
+            widget.destroy()
+        
+        self.contact_widgets.clear()
+        
+        for c in self.app_config["contacts"]:
+            self.create_contact_row(c)
+            
+        # Apply filters/sort immediately after drawing
+        self.filter_contacts_list()
 
     def import_csv(self):
         filepath = filedialog.askopenfilename(title="Select CSV to Import", filetypes=[("CSV files", "*.csv"), ("All files", "*.*")])
