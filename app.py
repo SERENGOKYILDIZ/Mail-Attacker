@@ -1303,23 +1303,29 @@ class MailAttackerApp(ctk.CTk):
             popup.after(1000, check_folder_sync)
 
         def open_attachment_folder():
-            paths = files_var.get().split("|")
+            paths = [resolve_att_path(p) for p in files_var.get().split("|") if p]
             folder_to_open = None
             
-            if paths and paths[0] and os.path.exists(os.path.dirname(paths[0])):
-                folder_to_open = os.path.dirname(paths[0])
-            else:
+            # Try to get folder from first valid attachment
+            for p in paths:
+                d = os.path.normpath(os.path.dirname(p))
+                if d and os.path.isdir(d):
+                    folder_to_open = d
+                    break
+            
+            # Fallback: create/use profile folder in ATTACHMENTS_DIR
+            if not folder_to_open:
                 email_val = email_var.get().strip()
                 profile_name = comp_var.get().strip() or email_val
                 safe_profile_name = "".join(c for c in profile_name if c.isalnum() or c in (" ", "-", "_", ".", "@")).strip()
                 if not safe_profile_name:
                     safe_profile_name = f"profile_{int(time.time())}"
-                folder_to_open = os.path.join(config.ATTACHMENTS_DIR, safe_profile_name)
+                os.makedirs(config.ATTACHMENTS_DIR, exist_ok=True)
+                folder_to_open = os.path.normpath(os.path.join(config.ATTACHMENTS_DIR, safe_profile_name))
                 os.makedirs(folder_to_open, exist_ok=True)
             
-            if os.path.exists(folder_to_open):
-                import subprocess
-                subprocess.Popen(f'explorer "{folder_to_open}"')
+            if folder_to_open and os.path.isdir(folder_to_open):
+                os.startfile(folder_to_open)
                 
                 if not sync_state["active"]:
                     sync_state["folder"] = folder_to_open
