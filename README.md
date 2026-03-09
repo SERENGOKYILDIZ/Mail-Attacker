@@ -19,8 +19,9 @@ Whether you're sending out newsletters, corporate announcements, or individual t
 
 ## 🌟 Key Features
 
-* **Modern, Responsive UI:** A beautiful dark-themed interface built with `customtkinter` featuring intuitive navigation between Contacts, Settings, Reports, and Help.
-* **🌍 Multi-Language Support (NEW):**
+* **Modern, Responsive UI:** A beautiful interface built with `customtkinter` featuring intuitive navigation between Contacts, Settings, Reports, and Help.
+  * Choose between **Dark**, **Light**, or **System** appearance themes.
+* **🌍 Multi-Language Support:**
   * Switch between **English** and **Türkçe** directly from Settings.
   * Auto-detects your system language on first launch.
   * Language change applies instantly — the app restarts automatically with the new language.
@@ -29,7 +30,8 @@ Whether you're sending out newsletters, corporate announcements, or individual t
   * Add, edit, and delete contacts directly within a scrollable, proportionate grid view.
   * **Optimized Two-Column Editor:** A two-column popup cleanly separates text inputs and attachments (left) from the message body (right).
   * **Favorites & Notes:** Star specific contacts as favorites and write persistent internal notes about them in a dedicated 'Favorites' sidebar panel.
-  * **Instant Sorting & Filtering:** Quickly filter your list using one-click buttons (All, Active, Inactive, Favorites) or sort them alphabetically (A-Z) without any UI lag.
+  * **Categorization Tags (NEW):** Assign custom group text or tags to your contacts in the Editor to easily classify and organize your lists.
+  * **Instant Sorting & Filtering:** Quickly filter your list using one-click buttons (All, Active, Inactive, Favorites), filter by specific **Tags**, or sort them alphabetically (A-Z) without any UI lag.
   * **Lightning Fast Navigation:** Enjoy accelerated 4x native mouse-wheel scrolling across all long lists and menus for a seamless browser-like experience.
   * **Clickable Template Variables:** Insert dynamic variables like `{company_name}`, `{email}`, `{email_prefix}`, `{date}`, and `{time}` into your message with a single click.
   * **Right-Click Context Menu:** Copy, paste, toggle, favorite, and delete contacts or message text via intuitive right-click menus.
@@ -40,7 +42,8 @@ Whether you're sending out newsletters, corporate announcements, or individual t
   * **Multi-Selection:** Hold `CTRL`/`SHIFT` for bulk selection, toggle, favoriting, or deletion.
   * **Enable/Disable:** Temporarily skip users during a bulk send without deleting them from your database.
 * **Smart Mailing Engine & Dynamic Feedback:** 
-  * **Dynamic Template Variables:** Personalize emails at scale by inserting `{company_name}`, `{email}`, `{email_prefix}`, `{date}`, or `{time}` directly into your subject or message body.
+  * **Dynamic Template Variables:** Personalize emails at scale by inserting `{company_name}`, `{email}`, `{email_prefix}`, `{date}`, `{time}`, or the new `{signature}` directly into your subject or message body.
+  * **Global Signature (NEW):** Set up a consistent, reusable email signature via the Settings tab to easily inject it into all outbound campaigns.
   * **Configurable Date & Time Formats:** Choose your preferred date format (DD/MM/YYYY, MM/DD/YYYY, YYYY-MM-DD, DD.MM.YYYY) and time format (24H / 12H) from read-only dropdown selectors in Settings.
   * **Anti-Spam Delay:** Bypass provider rate-limits by setting custom delays (in seconds) between each sent email. The delay is automatically skipped after the last enabled contact for faster completion.
   * The sending process runs entirely in the background. Contacts being processed are highlighted with a bright yellow border.
@@ -63,6 +66,7 @@ Whether you're sending out newsletters, corporate announcements, or individual t
   * Built-in validation ensures ports are numeric and email formats are correct before saving.
   * **Compact Settings Layout:** Server + Port share a row, Email + Password share a row, and Language + Delay + Notifications are grouped together for a cleaner, more efficient interface.
   * Password visibility toggles for security and ease of use.
+  * **Encrypted Storage (NEW):** Your SMTP configuration passwords are safely encrypted on-disk (`crypto.py`) before they are written to the configuration file.
 * **Local Data Persistence:** 
   * All configurations, contact lists, reports, and attached files are automatically and securely cached in your local `AppData/Roaming/MailFlow` directory (or your custom data folder).
 

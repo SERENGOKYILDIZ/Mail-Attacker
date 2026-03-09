@@ -55,6 +55,12 @@ TRANSLATIONS = {
         "data_folder_moved": "Data folder changed and files have been moved. The app will restart.",
         "settings_saved": "Settings saved.",
         "lang_restart": "Language changed. Please restart the application for it to take full effect.",
+        "theme": "Appearance Theme",
+        "theme_system": "System",
+        "theme_light": "Light",
+        "theme_dark": "Dark",
+        "global_signature": "Global Signature",
+        "global_signature_desc": "Appended to messages using {signature}. Leave empty to disable.",
 
         # Reports
         "send_reports": "Send Reports",
@@ -78,7 +84,8 @@ TRANSLATIONS = {
             "• {email} : Replaced by the recipient's full email address.\n"
             "• {email_prefix} : Replaced by the first part of the email address (the text before the '@' symbol).\n"
             "• {date} : Replaced with today's date (e.g. 2026-03-08).\n"
-            "• {time} : Replaced with the current time (e.g. 14:30).\n\n"
+            "• {time} : Replaced with the current time (e.g. 14:30).\n"
+            "• {signature} : Replaced with the text set in Settings -> Global Signature.\n\n"
             "Example Message:\n'Hello {company_name} rep. We are contacting you at {time} via {email_prefix}.'\n"
             "Becomes: 'Hello Microsoft rep. We are contacting you at 14:30 via billgates.'"
         ),
@@ -117,6 +124,8 @@ TRANSLATIONS = {
         "paste": "Paste",
         "copying_files": "Copying files... ({current}/{total})",
         "email_required": "Recipient Email is required",
+        "tag": "Category Tag",
+        "all_tags": "All Tags",
         
         # Favorites
         "notes": "Notes",
@@ -200,6 +209,12 @@ TRANSLATIONS = {
         "data_folder_moved": "Veri klasörü değiştirildi ve dosyalar taşındı. Uygulama yeniden başlatılacak.",
         "settings_saved": "Ayarlar kaydedildi.",
         "lang_restart": "Dil değiştirildi. Tam olarak uygulanması için uygulamayı yeniden başlatın.",
+        "theme": "Görünüm Teması",
+        "theme_system": "Sistem",
+        "theme_light": "Aydınlık",
+        "theme_dark": "Karanlık",
+        "global_signature": "Genel İmza",
+        "global_signature_desc": "Mesajlara {signature} kullanılarak eklenir. Kapatmak için boş bırakınız.",
 
         # Reports
         "send_reports": "Gönderim Raporları",
@@ -223,7 +238,8 @@ TRANSLATIONS = {
             "• {email} : Alıcının tam e-posta adresi ile değiştirilir.\n"
             "• {email_prefix} : E-posta adresinin '@' işaretinden önceki kısmı ile değiştirilir.\n"
             "• {date} : Bugünün tarihi ile değiştirilir (örn. 2026-03-08).\n"
-            "• {time} : Anlık saat ile değiştirilir (örn. 14:30).\n\n"
+            "• {time} : Anlık saat ile değiştirilir (örn. 14:30).\n"
+            "• {signature} : Ayarlar -> Genel İmza alanında yazdığınız metin ile değiştirilir.\n\n"
             "Örnek Mesaj:\n'Merhaba {company_name} yetkilisi. {time} itibarıyla {email_prefix} hesabınıza ulaşıyoruz.'\n"
             "Sonuç: 'Merhaba Microsoft yetkilisi. 14:30 itibarıyla billgates hesabınıza ulaşıyoruz.'"
         ),
@@ -262,6 +278,8 @@ TRANSLATIONS = {
         "paste": "Yapıştır",
         "copying_files": "Dosyalar kopyalanıyor... ({current}/{total})",
         "email_required": "Alıcı E-posta adresi gereklidir",
+        "tag": "Kategori Etiketi",
+        "all_tags": "Tüm Etiketler",
         
         # Favorites
         "notes": "Notlar",
