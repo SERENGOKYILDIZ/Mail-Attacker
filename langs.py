@@ -4,11 +4,12 @@ import locale
 TRANSLATIONS = {
     "en": {
         # Sidebar
-        "contacts": "Contacts",
-        "help": "Help",
-        "settings": "Settings",
-        "reports": "Reports",
-        "send_all_now": "Send All Now",
+        "contacts": "👥 Contacts",
+        "help": "❓ Help",
+        "settings": "⚙️ Settings",
+        "reports": "📊 Reports",
+        "favorites": "⭐️ Favorites",
+        "send_all_now": "🚀 Send All Now",
 
         # Contacts View
         "add_new_contact": "+ Add New Contact",
@@ -23,6 +24,7 @@ TRANSLATIONS = {
 
         # Context Menu
         "toggle_selected": "Toggle Selected",
+        "toggle_favorite_selected": "Toggle Favorite (Selected)",
         "delete_selected": "Delete Selected",
         "select_all": "Select All",
         "deselect_all": "Deselect All",
@@ -110,6 +112,12 @@ TRANSLATIONS = {
         "paste": "Paste",
         "copying_files": "Copying files... ({current}/{total})",
         "email_required": "Recipient Email is required",
+        
+        # Favorites
+        "notes": "Notes",
+        "save_note": "Save Note",
+        "no_favorite_selected": "Select a favorite contact to view notes.",
+        "note_saved_success": "Notes saved successfully.",
 
         # CSV
         "csv_import_success": "{count} contacts imported successfully.",
@@ -136,11 +144,12 @@ TRANSLATIONS = {
     },
     "tr": {
         # Sidebar
-        "contacts": "Kişiler",
-        "help": "Yardım",
-        "settings": "Ayarlar",
-        "reports": "Raporlar",
-        "send_all_now": "Tümünü Gönder",
+        "contacts": "👥 Kişiler",
+        "help": "❓ Yardım",
+        "settings": "⚙️ Ayarlar",
+        "reports": "📊 Raporlar",
+        "favorites": "⭐️ Favoriler",
+        "send_all_now": "🚀 Tümünü Gönder",
 
         # Contacts View
         "add_new_contact": "+ Yeni Kişi Ekle",
@@ -155,6 +164,7 @@ TRANSLATIONS = {
 
         # Context Menu
         "toggle_selected": "Seçilenleri Değiştir",
+        "toggle_favorite_selected": "Seçilenleri Favori Yap/Kaldır",
         "delete_selected": "Seçilenleri Sil",
         "select_all": "Tümünü Seç",
         "deselect_all": "Tümünü Bırak",
@@ -242,6 +252,12 @@ TRANSLATIONS = {
         "paste": "Yapıştır",
         "copying_files": "Dosyalar kopyalanıyor... ({current}/{total})",
         "email_required": "Alıcı E-posta adresi gereklidir",
+        
+        # Favorites
+        "notes": "Notlar",
+        "save_note": "Notu Kaydet",
+        "no_favorite_selected": "Notları görüntülemek için favori bir kişi seçin.",
+        "note_saved_success": "Notlar başarıyla kaydedildi.",
 
         # CSV
         "csv_import_success": "{count} kişi başarıyla içe aktarıldı.",

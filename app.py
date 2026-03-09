@@ -64,7 +64,7 @@ class MailAttackerApp(ctk.CTk):
         self.app_config = {"smtp": {}, "contacts": []}
         self.contact_widgets = {}
         self.load_config()
-
+        
         # Initialize language
         saved_lang = self.app_config.get("language", "")
         if saved_lang and saved_lang in langs.TRANSLATIONS:
@@ -80,7 +80,7 @@ class MailAttackerApp(ctk.CTk):
 
         self.sidebar_frame = ctk.CTkFrame(self, width=200, corner_radius=0)
         self.sidebar_frame.grid(row=0, column=0, sticky="nsew")
-        self.sidebar_frame.grid_rowconfigure(5, weight=1)
+        self.sidebar_frame.grid_rowconfigure(6, weight=1)
 
         self.logo_label = ctk.CTkLabel(self.sidebar_frame, text=f"{config.APP_NAME}\n{config.APP_VERSION}", font=ctk.CTkFont(size=20, weight="bold"))
         self.logo_label.grid(row=0, column=0, padx=20, pady=(20, 10))
@@ -91,14 +91,17 @@ class MailAttackerApp(ctk.CTk):
         self.help_button = ctk.CTkButton(self.sidebar_frame, text=t("help"), command=self.show_help_view, fg_color="#3B3B3B", hover_color="#2B2B2B")
         self.help_button.grid(row=2, column=0, padx=20, pady=10)
         
-        self.settings_button = ctk.CTkButton(self.sidebar_frame, text=t("settings"), command=self.show_settings_view)
-        self.settings_button.grid(row=3, column=0, padx=20, pady=10)
+        self.favorites_button = ctk.CTkButton(self.sidebar_frame, text=t("favorites"), command=self.show_favorites_view, fg_color="#c29400", hover_color="#9e7800", text_color="white")
+        self.favorites_button.grid(row=3, column=0, padx=20, pady=10)
         
         self.reports_button = ctk.CTkButton(self.sidebar_frame, text=t("reports"), command=self.show_reports_view)
         self.reports_button.grid(row=4, column=0, padx=20, pady=10)
         
+        self.settings_button = ctk.CTkButton(self.sidebar_frame, text=t("settings"), command=self.show_settings_view)
+        self.settings_button.grid(row=5, column=0, padx=20, pady=10)
+        
         self.send_all_button = ctk.CTkButton(self.sidebar_frame, text=t("send_all_now"), command=self.send_all_mails, fg_color="green", hover_color="darkgreen", height=45, font=ctk.CTkFont(size=14, weight="bold"))
-        self.send_all_button.grid(row=6, column=0, padx=15, pady=(15, 25))
+        self.send_all_button.grid(row=7, column=0, padx=15, pady=(15, 25))
 
         # --- Contacts Frame ---
         self.contacts_frame = ctk.CTkFrame(self, corner_radius=0, fg_color="transparent")
@@ -130,12 +133,46 @@ class MailAttackerApp(ctk.CTk):
         # Context Menu for Right Click
         self.context_menu = tk.Menu(self, tearoff=0)
         self.context_menu.add_command(label=t("toggle_selected"), command=self.toggle_selected_contacts)
+        self.context_menu.add_command(label=t("toggle_favorite_selected"), command=self.toggle_favorite_selected_contacts)
         self.context_menu.add_command(label=t("delete_selected"), command=self.delete_selected_contacts)
         self.context_menu.add_separator()
         self.context_menu.add_command(label=t("select_all"), command=lambda: self.set_all_contacts(True))
         self.context_menu.add_command(label=t("deselect_all"), command=lambda: self.set_all_contacts(False))
         
         self.contacts_scrollable_frame.bind("<Button-3>", self.show_context_menu)
+        
+        # --- Favorites Frame ---
+        self.favorites_frame = ctk.CTkFrame(self, corner_radius=0, fg_color="transparent")
+        
+        fav_main_frame = ctk.CTkFrame(self.favorites_frame, fg_color="transparent")
+        fav_main_frame.pack(fill="both", expand=True, padx=config.PAD_X, pady=20)
+        
+        # Left side: list of favorites
+        self.fav_list_frame = ctk.CTkScrollableFrame(fav_main_frame, width=250)
+        self.fav_list_frame.pack(side="left", fill="y", padx=(0, 10))
+        
+        # Right side: notes area
+        self.fav_notes_frame = ctk.CTkFrame(fav_main_frame)
+        self.fav_notes_frame.pack(side="right", fill="both", expand=True)
+        
+        self.active_fav_contact_id = None
+        self.fav_title_lbl = ctk.CTkLabel(self.fav_notes_frame, text=t("no_favorite_selected"), font=ctk.CTkFont(size=18, weight="bold"))
+        self.fav_title_lbl.pack(pady=15)
+        
+        self.fav_notes_textbox = ctk.CTkTextbox(self.fav_notes_frame, font=ctk.CTkFont(size=14))
+        self.fav_notes_textbox.pack(fill="both", expand=True, padx=20, pady=(0, 15))
+        self.fav_notes_textbox.configure(state="disabled")
+        
+        # Auto-save notes on typing
+        def on_note_modified(event):
+            if self.active_fav_contact_id is not None:
+                for c in self.app_config["contacts"]:
+                    if c.get("id") == self.active_fav_contact_id:
+                        c["notes"] = self.fav_notes_textbox.get("1.0", "end-1c")
+                        self.save_config()
+                        break
+                        
+        self.fav_notes_textbox.bind("<KeyRelease>", on_note_modified)
 
         # --- Settings Frame ---
         self.settings_frame = ctk.CTkScrollableFrame(self, corner_radius=0, fg_color="transparent")
@@ -357,6 +394,18 @@ class MailAttackerApp(ctk.CTk):
                         if "toggle_cmd" in widgets:
                             widgets["toggle_cmd"]()
 
+    def toggle_favorite_selected_contacts(self):
+        if not hasattr(self, 'selected_rows') or not self.selected_rows:
+            return
+            
+        for r in self.selected_rows:
+            if r.winfo_exists():
+                c_id = getattr(r, "contact_id", None)
+                if c_id is not None:
+                    widgets = self.contact_widgets.get(c_id)
+                    if widgets and "toggle_fav_cmd" in widgets:
+                        widgets["toggle_fav_cmd"]()
+
     def delete_selected_contacts(self):
         if not hasattr(self, 'selected_rows') or not self.selected_rows:
             return
@@ -434,14 +483,19 @@ class MailAttackerApp(ctk.CTk):
         self.settings_frame.grid_forget()
         self.reports_frame.grid_forget()
         self.help_frame.grid_forget()
+        self.favorites_frame.grid_forget()
         self.contacts_frame.grid(row=0, column=1, sticky="nsew")
-        self.send_all_button.grid(row=6, column=0, padx=15, pady=(15, 25))
-        self.refresh_contacts_list()
+        self.send_all_button.grid(row=7, column=0, padx=15, pady=(15, 25))
+        
+        # Only refresh if the widgets haven't been created yet to prevent lag
+        if not self.contact_widgets and self.app_config.get("contacts"):
+            self.refresh_contacts_list()
 
     def show_settings_view(self):
         self.contacts_frame.grid_forget()
         self.reports_frame.grid_forget()
         self.help_frame.grid_forget()
+        self.favorites_frame.grid_forget()
         self.send_all_button.grid_remove()
         self.settings_frame.grid(row=0, column=1, sticky="nsew")
         
@@ -449,6 +503,7 @@ class MailAttackerApp(ctk.CTk):
         self.contacts_frame.grid_forget()
         self.settings_frame.grid_forget()
         self.help_frame.grid_forget()
+        self.favorites_frame.grid_forget()
         self.send_all_button.grid_remove()
         self.reports_frame.grid(row=0, column=1, sticky="nsew")
         self.refresh_reports_list()
@@ -457,8 +512,60 @@ class MailAttackerApp(ctk.CTk):
         self.contacts_frame.grid_forget()
         self.settings_frame.grid_forget()
         self.reports_frame.grid_forget()
+        self.favorites_frame.grid_forget()
         self.send_all_button.grid_remove()
         self.help_frame.grid(row=0, column=1, sticky="nsew")
+
+    def show_favorites_view(self):
+        self.contacts_frame.grid_forget()
+        self.settings_frame.grid_forget()
+        self.reports_frame.grid_forget()
+        self.help_frame.grid_forget()
+        self.send_all_button.grid_remove()
+        self.favorites_frame.grid(row=0, column=1, sticky="nsew")
+        self.refresh_favorites_list()
+
+    def refresh_favorites_list(self):
+        for w in self.fav_list_frame.winfo_children():
+            w.destroy()
+            
+        favs = [c for c in self.app_config.get("contacts", []) if c.get("favorite")]
+        
+        if not favs:
+            ctk.CTkLabel(self.fav_list_frame, text=t("no_favorite_selected"), text_color="gray").pack(pady=20)
+            self.fav_title_lbl.configure(text=t("no_favorite_selected"))
+            self.fav_notes_textbox.configure(state="normal")
+            self.fav_notes_textbox.delete("1.0", "end")
+            self.fav_notes_textbox.configure(state="disabled")
+            self.active_fav_contact_id = None
+            return
+            
+        def select_fav(contact_id):
+            self.active_fav_contact_id = contact_id
+            c = next((x for x in self.app_config["contacts"] if x.get("id") == contact_id), None)
+            if c:
+                name = c.get("company") or c.get("email")
+                self.fav_title_lbl.configure(text=f"{t('notes')} - {name}")
+                
+                self.fav_notes_textbox.configure(state="normal")
+                self.fav_notes_textbox.delete("1.0", "end")
+                self.fav_notes_textbox.insert("1.0", c.get("notes", ""))
+                
+                # Highlight active row in the sidebar
+                for child in self.fav_list_frame.winfo_children():
+                    child.configure(fg_color="#1f538d" if getattr(child, "c_id", None) == contact_id else "transparent")
+                    
+        for c in favs:
+            row_frame = ctk.CTkFrame(self.fav_list_frame, fg_color="transparent", cursor="hand2")
+            row_frame.pack(fill="x", pady=2, padx=5)
+            row_frame.c_id = c.get("id")
+            
+            name = c.get("company") or c.get("email")
+            lbl = ctk.CTkLabel(row_frame, text=name, anchor="w", font=ctk.CTkFont(weight="bold"))
+            lbl.pack(fill="x", padx=10, pady=8)
+            
+            for w in [row_frame, lbl]:
+                w.bind("<Button-1>", lambda e, cid=c.get("id"): select_fav(cid))
 
     def clear_reports(self):
         if messagebox.askyesno(t("clear_reports"), t("clear_reports_confirm")):
@@ -762,12 +869,13 @@ class MailAttackerApp(ctk.CTk):
         row_frame.contact_id = contact.get("id")
         
         row_frame.grid_columnconfigure(1, weight=0)
-        row_frame.grid_columnconfigure(2, weight=1, uniform="col")
-        row_frame.grid_columnconfigure(3, weight=2, uniform="col")
-        row_frame.grid_columnconfigure(4, weight=2, uniform="col")
-        row_frame.grid_columnconfigure(5, weight=0)
-        row_frame.grid_columnconfigure(6, weight=0)
-        row_frame.grid_columnconfigure(7, weight=0)
+        row_frame.grid_columnconfigure(2, weight=0) # fav_btn
+        row_frame.grid_columnconfigure(3, weight=1, uniform="col") # company
+        row_frame.grid_columnconfigure(4, weight=2, uniform="col") # email
+        row_frame.grid_columnconfigure(5, weight=2, uniform="col") # subject
+        row_frame.grid_columnconfigure(6, weight=0) # status
+        row_frame.grid_columnconfigure(7, weight=0) # edit
+        row_frame.grid_columnconfigure(8, weight=0) # del
         
         drag_handle = ctk.CTkLabel(row_frame, text="", cursor="fleur", width=0)
         drag_handle.grid(row=0, column=0, padx=(5, 0), pady=10)
@@ -776,6 +884,24 @@ class MailAttackerApp(ctk.CTk):
         
         enable_cb = ctk.CTkCheckBox(row_frame, text="", variable=is_enabled, width=20)
         enable_cb.grid(row=0, column=1, padx=5)
+        
+        is_fav = ctk.BooleanVar(value=contact.get('favorite', False))
+        fav_btn = ctk.CTkButton(row_frame, text="⭐️" if is_fav.get() else "☆", width=30, fg_color="transparent", text_color="gold" if is_fav.get() else "gray", hover_color="gray30", font=ctk.CTkFont(size=18))
+        fav_btn.grid(row=0, column=2, padx=5)
+        
+        def toggle_favorite():
+            new_state = not is_fav.get()
+            is_fav.set(new_state)
+            fav_btn.configure(text="⭐️" if new_state else "☆", text_color="gold" if new_state else "gray")
+            
+            c_id = contact.get("id")
+            for c in self.app_config["contacts"]:
+                if c.get("id") == c_id:
+                    c["favorite"] = new_state
+                    self.save_config()
+                    break
+                    
+        fav_btn.configure(command=toggle_favorite)
 
         def truncate(text, max_len=20):
             return text if len(text) <= max_len else text[:max_len-3] + "..."
@@ -784,28 +910,29 @@ class MailAttackerApp(ctk.CTk):
         text_color = "gray50" if not is_enabled.get() else ["gray10", "#DCE4EE"]
 
         company_lbl = ctk.CTkLabel(row_frame, text=truncate(contact.get('company', '')), anchor="w", cursor="fleur", text_color=text_color, font=font_style)
-        company_lbl.grid(row=0, column=2, sticky="w", padx=5)
+        company_lbl.grid(row=0, column=3, sticky="w", padx=5)
         
         email_lbl = ctk.CTkLabel(row_frame, text=truncate(contact.get('email', ''), 25), anchor="w", cursor="fleur", text_color=text_color, font=font_style)
-        email_lbl.grid(row=0, column=3, sticky="w", padx=5)
+        email_lbl.grid(row=0, column=4, sticky="w", padx=5)
         
         subj_lbl = ctk.CTkLabel(row_frame, text=truncate(contact.get('subject', ''), 25), anchor="w", cursor="fleur", text_color=text_color, font=font_style)
-        subj_lbl.grid(row=0, column=4, sticky="w", padx=5)
+        subj_lbl.grid(row=0, column=5, sticky="w", padx=5)
 
         status_lbl = ctk.CTkLabel(row_frame, text=t("ready"), width=80)
-        status_lbl.grid(row=0, column=5, padx=10)
+        status_lbl.grid(row=0, column=6, padx=10)
         
         self.contact_widgets[contact.get("id")] = {
             "status_lbl": status_lbl,
             "is_enabled_var": is_enabled,
-            "row_frame": row_frame
+            "row_frame": row_frame,
+            "toggle_fav_cmd": toggle_favorite
         }
         
         edit_btn = ctk.CTkButton(row_frame, text=t("edit"), width=60, command=lambda c=contact: self.open_contact_popup(c))
-        edit_btn.grid(row=0, column=6, padx=5)
+        edit_btn.grid(row=0, column=7, padx=5)
 
         del_btn = ctk.CTkButton(row_frame, text=t("del"), width=60, fg_color="red", hover_color="darkred", command=lambda c=contact: self.delete_contact(c))
-        del_btn.grid(row=0, column=7, padx=(5, 10))
+        del_btn.grid(row=0, column=8, padx=(5, 10))
         
         def toggle_contact_state():
             enabled = is_enabled.get()
