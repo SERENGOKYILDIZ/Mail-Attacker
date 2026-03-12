@@ -793,32 +793,42 @@ class MailAttackerApp(ctk.CTk):
             config.reload_paths()
             new_app_dir = config.APP_DIR  # New data directory
             
-            # Migrate data files from old to new location
-            files_to_move = ["config.json", "reports.json"]
-            dirs_to_move = ["attachments"]
+            # If the new directory already contains data, don't migrate/overwrite
+            if os.path.exists(os.path.join(new_app_dir, "config.json")):
+                messagebox.showinfo(t("info"), t("data_folder_exists_loading"))
+            else:
+                # Migrate data files from old to new location
+                files_to_move = ["config.json", "reports.json"]
+                dirs_to_move = ["attachments"]
+                
+                for fname in files_to_move:
+                    src = os.path.join(old_app_dir, fname)
+                    dst = os.path.join(new_app_dir, fname)
+                    if os.path.exists(src) and not os.path.exists(dst):
+                        try:
+                            shutil.move(src, dst)
+                        except Exception as e:
+                            print(f"Failed to move {fname}: {e}")
+                
+                for dname in dirs_to_move:
+                    src = os.path.join(old_app_dir, dname)
+                    dst = os.path.join(new_app_dir, dname)
+                    if os.path.isdir(src) and not os.path.exists(dst):
+                        try:
+                            shutil.move(src, dst)
+                        except Exception as e:
+                            print(f"Failed to move {dname}: {e}")
+                
+                messagebox.showinfo(t("info"), t("data_folder_moved"))
             
-            for fname in files_to_move:
-                src = os.path.join(old_app_dir, fname)
-                dst = os.path.join(new_app_dir, fname)
-                if os.path.exists(src) and not os.path.exists(dst):
-                    try:
-                        shutil.move(src, dst)
-                    except Exception as e:
-                        print(f"Failed to move {fname}: {e}")
-            
-            for dname in dirs_to_move:
-                src = os.path.join(old_app_dir, dname)
-                dst = os.path.join(new_app_dir, dname)
-                if os.path.isdir(src) and not os.path.exists(dst):
-                    try:
-                        shutil.move(src, dst)
-                    except Exception as e:
-                        print(f"Failed to move {dname}: {e}")
-            
-            messagebox.showinfo(t("info"), t("data_folder_moved"))
             need_restart = True
         
-        self.save_config()
+        # Only save current config state if we didn't just switch to an existing data folder
+        is_existing_data = (new_data_folder != old_data_folder and 
+                           os.path.exists(os.path.join(config.APP_DIR, "config.json")))
+        
+        if not is_existing_data:
+            self.save_config()
         
         if not need_restart and new_lang != old_lang:
             need_restart = True
