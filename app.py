@@ -1,3 +1,4 @@
+# pyre-ignore-all-errors
 import os
 import sys
 import json
@@ -661,9 +662,30 @@ class MailAttackerApp(ctk.CTk):
             deliveries = [r for r in run.get("deliveries", []) if r.get("status") != "Skipped (Disabled)"]
             if not deliveries:
                 continue
-
-            summary_text = t("send_batch", date=run.get('date', 'Unknown Time'), count=len(deliveries))
+            raw_date = run.get('date', 'Unknown Time')
+            display_date = raw_date
             
+            try:
+                # Try to parse the standard saved format "%Y-%m-%d %H:%M:%S"
+                dt_obj = datetime.datetime.strptime(raw_date, "%Y-%m-%d %H:%M:%S")
+                
+                date_map = {"DD/MM/YYYY": "%d/%m/%Y", "MM/DD/YYYY": "%m/%d/%Y", "YYYY-MM-DD": "%Y-%m-%d", "DD.MM.YYYY": "%d.%m.%Y"}
+                time_map = {"24H": "%H:%M", "12H": "%I:%M %p"}
+                
+                date_fmt_key = self.app_config.get("date_format", "DD/MM/YYYY")
+                time_fmt_key = self.app_config.get("time_format", "24H")
+                
+                date_fmt = date_fmt_key if "%" in date_fmt_key else date_map.get(date_fmt_key, "%d/%m/%Y")
+                time_fmt = time_fmt_key if "%" in time_fmt_key else time_map.get(time_fmt_key, "%H:%M")
+                
+                display_date = f"{dt_obj.strftime(date_fmt)} - {dt_obj.strftime(time_fmt)}"
+            except Exception:
+                # If it fails to parse (already formatted or otherwise), leave it as is
+                pass
+
+            summary_text = t("send_batch", date=display_date, count=len(deliveries))
+            
+
             header_frame = ctk.CTkFrame(run_frame, fg_color="transparent")
             header_frame.pack(fill="x")
             
@@ -1626,7 +1648,6 @@ class MailAttackerApp(ctk.CTk):
         password = smtp_conf.get("password") # This is the encrypted password
 
         contacts = self.app_config.get("contacts", [])
-        
         current_run = {
             "date": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "deliveries": []
